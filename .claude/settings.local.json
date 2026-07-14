@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -c src/routes/categorieVehiculeRoute.js)",
+      "Bash(node -c src/routes/trajetRoute.js)",
+      "Bash(node -c src/config/roles.js)"
+    ]
+  }
+}

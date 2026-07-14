@@ -1,0 +1,31 @@
+Bonjour {{prenom}} {{nom}},
+
+Bienvenue sur N'DJIGI ! Un compte gestionnaire de parking vient d'être créé pour vous par l'administrateur.
+
+📋 VOS IDENTIFIANTS
+   • Email : {{email}}
+   • Mot de passe provisoire : {{tempPassword}}
+
+⚠️ Ce mot de passe ne fonctionnera qu'une seule fois.
+Vous devrez en choisir un nouveau dès votre première connexion.
+
+🔐 POUR VOTRE PREMIÈRE CONNEXION
+   1. Rendez-vous sur N'DJIGI : {{appUrl}}/login
+   2. Connectez-vous avec les identifiants ci-dessus
+   3. Choisissez votre nouveau mot de passe personnel
+   4. Confirmez votre adresse email (un code vous sera envoyé)
+   5. Activez la sécurité par SMS sur votre téléphone
+   6. Accédez à votre espace de gestion
+
+🅿️ VOS PARKINGS
+{{parkingsList}}
+
+Vous pourrez suivre vos parkings au quotidien, consulter les revenus et superviser vos opérations directement depuis votre espace.
+
+{{#if supportWhatsapp}}Besoin d'aide ? Contactez-nous sur WhatsApp : {{supportWhatsapp}}
+
+{{/if}}À très vite sur N'DJIGI !
+L'équipe N'DJIGI
+
+---
+Cet email a été envoyé automatiquement, merci de ne pas y répondre.

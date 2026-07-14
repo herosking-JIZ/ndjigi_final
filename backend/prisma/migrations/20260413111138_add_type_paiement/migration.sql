@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "paiement" ADD COLUMN     "type" VARCHAR(30) NOT NULL DEFAULT 'PAIEMENT_TRAJET';

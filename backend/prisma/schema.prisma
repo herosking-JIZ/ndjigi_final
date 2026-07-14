@@ -1,0 +1,1045 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../generated/prisma"
+  previewFeatures = ["partialIndexes", "postgresqlExtensions"]
+  engineType      = "library"
+}
+
+enum sujet_ticket {
+  probleme_technique
+  question_sur_une_course
+  reclamation
+  autre
+}
+
+enum relation {
+  parent
+  enfant
+  conjoint
+  frere
+  soeur
+  cousin
+  copain
+  copine
+  autre
+}
+
+enum photo_owner_type {
+  vehicule
+  utilisateur
+  journal_parking
+  maintenance
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum NomCategorie {
+  Economique
+  Confort
+  Premium
+}
+
+enum typeDocument {
+  permis_conduire
+  carte_grise
+  assurance
+  piece_identite
+  justificatif_domicile
+  contrat_ndjigi
+}
+
+enum TypeService {
+  covoiturage
+  course_plein_temps
+}
+
+enum StatutVehicule {
+  disponible
+  en_course
+  en_location
+  maintenance
+  retire
+}
+
+enum statutvalidation {
+  en_attente
+  valide
+  refuse
+  suspendu
+}
+
+enum etat_vehicule {
+  bon_etat
+  besoin_maintenance
+  en_maintenance
+  retire
+}
+
+enum trajet_statut {
+  en_attente
+  chauffeur_trouve
+  confirme
+  en_cours
+  termine
+  annule
+}
+
+enum type_mouvement_parking {
+  entree
+  sortie
+  reprise
+  maintenance
+}
+
+enum TypeMoyenPaiement {
+  CARTE_BANCAIRE
+  MOBILE_MONEY
+  PORTEFEUILLE
+}
+
+enum ProvisioningIncidentType {
+  orphan_keycloak
+  orphan_postgres
+  rollback_failed
+  email_failed
+  sync_failed
+}
+
+enum ProvisioningIncidentStatus {
+  pending
+  resolved
+  manual_intervention_required
+}
+
+enum StatutPortefeuille {
+  actif
+  bloque
+}
+
+// ─── ENUMS PARKEUR ─────────────────────────────────────────
+enum type_maintenance {
+  mecanique
+  electricite
+  carrosserie
+}
+
+enum type_extension {
+  chauffeur
+  proprietaire
+}
+
+enum type_reduction {
+  fixe
+  pourcentage
+}
+
+enum maintenance_statut {
+  en_attente
+  confirmee
+  en_reparation
+  terminee
+  bon_etat
+}
+
+enum maintenance_urgence {
+  basse
+  normale
+  haute
+}
+
+enum statut_compte {
+  actif
+  inactif
+  suspendu
+}
+
+enum StatutDisponibilite {
+  en_ligne
+  hors_ligne
+  en_course
+}
+
+enum ticket_statut {
+  ouvert
+  en_cours
+  resolu
+  ferme
+}
+
+enum ticket_priorite {
+  faible
+  normale
+  haute
+  urgente
+}
+
+enum remboursement_statut {
+  en_attente
+  traite
+  rejete
+}
+
+enum statut_extension {
+  en_attente
+  accepte
+  refuse
+}
+
+model avis {
+  id_avis                                     String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_evaluateur                               String      @db.Uuid
+  id_evalue                                   String      @db.Uuid
+  id_trajet                                   String?     @db.Uuid
+  id_location                                 String?     @db.Uuid
+  note                                        Int?        @db.SmallInt
+  commentaire                                 String?
+  date_avis                                   DateTime?   @default(now()) @db.Timestamp(6)
+  utilisateur_avis_id_evaluateurToutilisateur utilisateur @relation("avis_id_evaluateurToutilisateur", fields: [id_evaluateur], references: [id_utilisateur], onDelete: NoAction, onUpdate: NoAction)
+  utilisateur_avis_id_evalueToutilisateur     utilisateur @relation("avis_id_evalueToutilisateur", fields: [id_evalue], references: [id_utilisateur], onDelete: NoAction, onUpdate: NoAction)
+  trajet                                      trajet?     @relation(fields: [id_trajet], references: [id_trajet], onDelete: NoAction, onUpdate: NoAction)
+  location                                    location?   @relation(fields: [id_location], references: [id_location], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([id_evaluateur], map: "idx_avis_evaluateur")
+  @@index([id_evalue], map: "idx_avis_evalue")
+}
+
+model chauffeur {
+  id_chauffeur             String                 @id @db.Uuid
+  statut_validation        statutvalidation       @default(en_attente)
+  type_service             TypeService
+  statut_disponibilite     StatutDisponibilite    @default(hors_ligne)
+  note_chauffeur           Decimal?               @db.Decimal(3, 2)
+  nb_courses_effectuees    Int                    @default(0)
+  /// Solde des commissions dues à la plateforme
+  solde_commission_du      Decimal                @default(0.00) @db.Decimal(12, 2)
+  date_derniere_suspension DateTime?              @db.Date
+  date_expiration_permis   DateTime?              @db.Date
+  numero_permis            String?                @db.VarChar(30)
+  vehicule_course          vehicule_course[]
+  affectation_vehicule     affectation_vehicule[]
+  utilisateur              utilisateur            @relation(fields: [id_chauffeur], references: [id_utilisateur], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model code_promo {
+  id_promo            String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code                String         @unique @db.VarChar(30)
+  /// "fixe" ou "pourcentage". Si "pourcentage", valeur doit être ≤ 100 (validé en application)
+  type_reduction      type_reduction
+  valeur              Decimal        @db.Decimal(8, 2)
+  date_debut          DateTime       @db.Timestamp(6)
+  date_fin            DateTime?      @db.Timestamp(6)
+  nb_utilisations_max Int?
+
+  nb_utilisations_actuel Int                 @default(0)
+  actif                  Boolean             @default(true)
+  utilisation_promo      utilisation_promo[]
+}
+
+model demande_extension {
+  id_demande_extension String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  extension_type       type_extension
+  id_utilisateur       String           @db.Uuid
+  statut               statut_extension @default(en_attente)
+  documents            document[]
+  utilisateur          utilisateur      @relation(fields: [id_utilisateur], references: [id_utilisateur], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model document {
+  id_document          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_utilisateur       String             @db.Uuid
+  id_vehicule          String?            @db.Uuid
+  type                 String             @db.VarChar(40)
+  id_demande_extension String?            @db.Uuid
+  url_fichier          String
+  title                String?            @db.VarChar(200)
+  fileKey              String?            @unique // YYYY-MM/{userId}/{uuid}{ext}
+  mimeType             String?            @db.VarChar(100)
+  fileSize             BigInt? // File size in bytes
+  storageHash          String?            @db.VarChar(64) // SHA256 hash (hex)
+  status               String?            @default("READY") @db.VarChar(20) // PENDING|READY|FAILED
+  motif_rejet          String?
+  statut_verification  String             @default("en_attente") @db.VarChar(20)
+  date_soumission      DateTime           @default(now()) @db.Timestamp(6)
+  date_expiration      DateTime?          @db.Date
+  createdAt            DateTime           @default(now()) @db.Timestamp(6)
+  updatedAt            DateTime           @updatedAt @db.Timestamp(6)
+  deletedAt            DateTime?          @db.Timestamp(6) // Soft delete
+  type_document        typeDocument?
+  utilisateur          utilisateur        @relation(fields: [id_utilisateur], references: [id_utilisateur], onDelete: NoAction, onUpdate: NoAction)
+  demande_extension    demande_extension? @relation(fields: [id_demande_extension], references: [id_demande_extension], onDelete: NoAction, onUpdate: NoAction)
+  vehicule             vehicule?          @relation(fields: [id_vehicule], references: [id_vehicule], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([id_utilisateur, deletedAt], map: "idx_document_userid_deletedat")
+  @@index([storageHash, id_utilisateur], map: "idx_document_hash_userid")
+  @@index([status, createdAt], map: "idx_document_status_createdat")
+  @@index([id_vehicule], map: "idx_document_vehicule")
+}
+
+model gestionnaire_parking {
+  id_gestionnaire  String      @id @db.Uuid
+  id_parking       String      @db.Uuid
+  date_prise_poste DateTime?   @db.Date
+  utilisateur      utilisateur @relation(fields: [id_gestionnaire], references: [id_utilisateur], onDelete: Cascade, onUpdate: NoAction)
+  parking          parking     @relation(fields: [id_parking], references: [id_parking], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([id_parking], map: "idx_gestionnaire_parking")
+}
+
+model incident_securite {
+  id_incident        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_trajet          String?     @db.Uuid
+  id_location        String?     @db.Uuid
+  id_declencheur     String      @db.Uuid
+  type_incident      String      @db.VarChar(30)
+  description        String?
+  date_declenchement DateTime    @default(now()) @db.Timestamp(6)
+  utilisateur        utilisateur @relation(fields: [id_declencheur], references: [id_utilisateur], onDelete: NoAction, onUpdate: NoAction)
+  trajet             trajet?     @relation(fields: [id_trajet], references: [id_trajet], onDelete: NoAction, onUpdate: NoAction)
+  location           location?   @relation(fields: [id_location], references: [id_location], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model mouvement_photo {
+  id_photo       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_mouvement   String? @db.Uuid
+  id_maintenance String? @db.Uuid
+
+  filename   String   @db.VarChar(255)
+  fileKey    String   @unique
+  filepath   String?  @db.Text
+  mimeType   String   @db.VarChar(50)
+  fileSize   BigInt
+  uploadedAt DateTime @default(now()) @db.Timestamp(6)
+
+  journal_parking journal_parking? @relation(fields: [id_mouvement], references: [id_log], onDelete: Cascade, onUpdate: NoAction)
+  maintenance     maintenance?     @relation(fields: [id_maintenance], references: [id_maintenance], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([id_mouvement], map: "idx_mouvement_photo_mouvement")
+  @@index([id_maintenance], map: "idx_mouvement_photo_maintenance")
+}
+
+model journal_parking {
+  id_log             String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_vehicule        String                 @db.Uuid
+  id_parking         String                 @db.Uuid
+  id_utilisateur     String                 @db.Uuid
+  type_mouvement     type_mouvement_parking
+  etat_vehicule      etat_vehicule
+  besoin_maintenance Boolean?               @default(false)
+  commentaire        String?                @db.Text
+  date_mouvement     DateTime?              @default(now()) @db.Timestamp(6)
+
+  parking         parking           @relation(fields: [id_parking], references: [id_parking], onDelete: NoAction, onUpdate: NoAction)
+  vehicule        vehicule          @relation(fields: [id_vehicule], references: [id_vehicule], onDelete: NoAction, onUpdate: NoAction)
+  utilisateur     utilisateur       @relation(fields: [id_utilisateur], references: [id_utilisateur], onDelete: NoAction, onUpdate: NoAction)
+  mouvementPhotos mouvement_photo[]
+  photos          photo[]
+
+  @@index([id_parking, date_mouvement], map: "idx_journal_parking_parking_date")
+}
+
+model maintenance {
+  id_maintenance  String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_vehicule     String              @db.Uuid
+  id_parking      String              @db.Uuid
+  id_gestionnaire String              @db.Uuid
+  type            type_maintenance
+  statut          maintenance_statut  @default(en_attente)
+  urgence         maintenance_urgence @default(normale)
+  description     String              @db.Text
+  date_creation   DateTime            @default(now()) @db.Timestamp(6)
+  date_resolution DateTime?           @db.Timestamp(6)
+
+  vehicule     vehicule           @relation(fields: [id_vehicule], references: [id_vehicule], onDelete: NoAction, onUpdate: NoAction)
+  parking      parking            @relation(fields: [id_parking], references: [id_parking], onDelete: NoAction, onUpdate: NoAction)
+  gestionnaire utilisateur        @relation(fields: [id_gestionnaire], references: [id_utilisateur], onDelete: NoAction, onUpdate: NoAction)
+  historique   maintenance_step[]
+  photos       mouvement_photo[]
+
+  @@index([id_vehicule], map: "idx_maintenance_vehicule")
+  @@index([id_parking], map: "idx_maintenance_parking")
+  @@index([statut], map: "idx_maintenance_statut")
+}
+
+model maintenance_step {
+  id_step         String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_maintenance  String              @db.Uuid
+  statut_ancien   maintenance_statut?
+  statut_nouveau  maintenance_statut
+  commentaire     String?             @db.Text
+  date_transition DateTime            @default(now()) @db.Timestamp(6)
+
+  maintenance maintenance @relation(fields: [id_maintenance], references: [id_maintenance], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([id_maintenance, date_transition], map: "idx_maintenance_step_maintenance_date")
+}
+
+model location {
+  id_location       String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_vehicule       String              @db.Uuid
+  id_passager       String              @db.Uuid
+  date_debut        DateTime            @db.Timestamp(6)
+  date_fin          DateTime            @db.Timestamp(6)
+  montant_total     Decimal             @db.Decimal(12, 2)
+  statut            String              @default("en_attente") @db.VarChar(20)
+  conversation      conversation?
+  passager          passager            @relation(fields: [id_passager], references: [id_passager], onDelete: NoAction, onUpdate: NoAction)
+  vehicule          vehicule_location   @relation(fields: [id_vehicule], references: [id_vehicule], onDelete: NoAction, onUpdate: NoAction)
+  avis              avis[]
+  incident_securite incident_securite[]
+  tickets           ticket[]
+}
+
+model mouvement_portefeuille {
+  id_mouvement    String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_portefeuille String       @db.Uuid
+  id_objet_lie    String?      @db.Uuid
+  type_operation  String       @db.VarChar(30)
+  montant         Decimal      @db.Decimal(12, 2)
+  sens            String       @db.VarChar(6)
+  solde_apres     Decimal      @db.Decimal(12, 2)
+  date_operation  DateTime     @default(now()) @db.Timestamp(6)
+  portefeuille    portefeuille @relation(fields: [id_portefeuille], references: [id_portefeuille], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model notification {
+  id_notification String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_utilisateur  String      @db.Uuid
+  type            String      @db.VarChar(40)
+  titre           String      @db.VarChar(100)
+  contenu         String
+  lu              Boolean     @default(false)
+  date_creation   DateTime    @default(now()) @db.Timestamp(6)
+  date_lecture    DateTime?   @db.Timestamp(6)
+  id_objet_lie    String?     @db.Uuid
+  utilisateur     utilisateur @relation(fields: [id_utilisateur], references: [id_utilisateur], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([id_utilisateur, lu], map: "idx_notification_utilisateur_lu")
+}
+
+model paiement {
+  id_paiement           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_utilisateur        String   @db.Uuid
+  id_moyen_paiement     String?  @db.Uuid // ✅ FK ajoutée
+  montant               Decimal  @db.Decimal(12, 2)
+  methode               String   @db.VarChar(20)
+  statut                String   @default("en_attente") @db.VarChar(20)
+  reference_transaction String?  @unique @db.VarChar(100)
+  date_paiement         DateTime @default(now()) @db.Timestamp(6)
+  type                  String   @default("en_attente") @db.VarChar(30)
+  id_objet_lie          String?  @db.Uuid
+
+  utilisateur    utilisateur      @relation(fields: [id_utilisateur], references: [id_utilisateur], onDelete: NoAction, onUpdate: NoAction)
+  moyen_paiement moyens_paiement? @relation(fields: [id_moyen_paiement], references: [id_moyen_paiement], onDelete: NoAction, onUpdate: NoAction) // ✅ relation ajoutée
+
+  @@index([reference_transaction], map: "idx_paiement_ref")
+  @@index([type], map: "idx_paiement_type")
+  @@index([id_moyen_paiement], map: "idx_paiement_moyen") // ✅ index recommandé
+}
+
+model parking {
+  id_parking           String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nom                  String                 @db.VarChar(100)
+  adresse              String
+  capacite_totale      Int?
+  capacite_occupee     Int                    @default(0)
+  latitude             Decimal?               @db.Decimal(10, 7)
+  longitude            Decimal?               @db.Decimal(10, 7)
+  /// Ville où se trouve le parking
+  ville                String?                @db.VarChar(100)
+  /// Ex: "Lun-Dim 06h-22h"
+  horaires             String?                @db.VarChar(100)
+  gestionnaire_parking gestionnaire_parking[]
+  journal_parking      journal_parking[]
+  vehicule             vehicule[]
+  maintenance_requests maintenance[]
+}
+
+model passager {
+  id_passager           String                   @id @db.Uuid
+  note_passager         Decimal?                 @db.Decimal(3, 2)
+  adresses_favorites    Json?
+  nb_courses_effectuees Int                      @default(0)
+  location              location[]
+  utilisateur           utilisateur              @relation(fields: [id_passager], references: [id_utilisateur], onDelete: Cascade, onUpdate: NoAction)
+  reservation           reservation[]
+  trajets_effectues     detail_trajet_passager[]
+}
+
+model portefeuille {
+  id_portefeuille        String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_utilisateur         String                   @unique @db.Uuid
+  solde                  Decimal                  @default(0.00) @db.Decimal(12, 2)
+  dette_commission       Decimal                  @default(0.00) @db.Decimal(12, 2)
+  devise                 String                   @default("XOF") @db.Char(3)
+  statut                 StatutPortefeuille       @default(actif)
+  mouvement_portefeuille mouvement_portefeuille[]
+  utilisateur            utilisateur              @relation(fields: [id_utilisateur], references: [id_utilisateur], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model proprietaire {
+  id_proprietaire         String           @id @db.Uuid
+  statut_validation       statutvalidation @default(en_attente)
+  note_proprietaire       Decimal?         @db.Decimal(3, 2)
+  nb_locations_effectuees Int              @default(0)
+  utilisateur             utilisateur      @relation(fields: [id_proprietaire], references: [id_utilisateur], onDelete: Cascade, onUpdate: NoAction)
+  vehicule                vehicule[]
+}
+
+model reservation {
+  id_reservation       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_passager          String   @db.Uuid
+  id_trajet            String   @db.Uuid
+  date_reservation     DateTime @default(now()) @db.Timestamp(6)
+  date_trajet_souhaite DateTime @db.Timestamp(6)
+  statut               String   @default("en_attente") @db.VarChar(20)
+  rappel_24h_envoye    Boolean? @default(false)
+  rappel_1h_envoye     Boolean? @default(false)
+  passager             passager @relation(fields: [id_passager], references: [id_passager], onDelete: NoAction, onUpdate: NoAction)
+  trajet               trajet   @relation(fields: [id_trajet], references: [id_trajet], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model tracking_vehicule {
+  id_tracking String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_vehicule String   @db.Uuid
+  latitude    Decimal  @db.Decimal(10, 7)
+  longitude   Decimal  @db.Decimal(10, 7)
+  vitesse     Int?
+  cap         Int?
+  horodatage  DateTime @default(now()) @db.Timestamp(6)
+  vehicule    vehicule @relation(fields: [id_vehicule], references: [id_vehicule], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([id_vehicule, horodatage], map: "idx_tracking_vehicule_horodatage")
+}
+
+model trajet {
+  id_trajet              String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_affectation         String                   @db.Uuid
+  id_zone                String?                  @db.Uuid
+  adresse_depart         String
+  adresse_arrivee        String
+  distance_km            Decimal?                 @db.Decimal(8, 2)
+  duree_estimee_min      Int?
+  date_heure_debut       DateTime?                @db.Timestamp(6)
+  date_heure_fin         DateTime?                @db.Timestamp(6)
+  statut                 trajet_statut            @default(en_attente)
+  type_trajet            String                   @db.VarChar(20)
+  tarif_final            Decimal?                 @db.Decimal(10, 2)
+  coordonnees_arrivee    Json?
+  coordonnees_depart     Json?
+  polyline_trajet        String?
+  /// Confirmation explicite du chauffeur après consultation des profils (distincte de l'acceptation initiale du matching)
+  confirmation_chauffeur Boolean                  @default(false)
+  /// Confirmation explicite du passager après consultation des profils
+  confirmation_passager  Boolean                  @default(false)
+  /// Le passager a confirmé l'identité du chauffeur à l'arrivée (plaque + couleur + photo, une seule action)
+  identite_confirmee     Boolean                  @default(false)
+  /// Motif fourni par la partie qui annule (chauffeur ou passager), transmis à l'autre par notification
+  motif_annulation       String?
+  /// Liste ordonnée (la plus proche en premier) des candidats proposés lors du matching : [{ id_affectation, distance_km }]
+  matching_candidats     Json?
+  /// Horodatage d'expiration de la proposition en cours (candidat courant = id_affectation), délai de 1 minute par candidat
+  matching_expire_a      DateTime?                @db.Timestamp(6)
+  /// Horodatage de début de la recherche, pour appliquer le plafond global de 15 minutes
+  matching_demarre_a     DateTime?                @db.Timestamp(6)
+  conversation           conversation?
+  avis                   avis[]
+  incident_securite      incident_securite[]
+  reservation            reservation[]
+  passagers_du_trajet    detail_trajet_passager[]
+  affectation_vehicule   affectation_vehicule     @relation(fields: [id_affectation], references: [id_affectation], onDelete: NoAction, onUpdate: NoAction)
+  zone_tarifaire         zone_tarifaire?          @relation(fields: [id_zone], references: [id_zone], onDelete: NoAction, onUpdate: NoAction)
+  utilisation_promo      utilisation_promo[]
+  ticket                 ticket[]
+  trajet_partage         trajet_partage[]
+
+  @@index([id_zone], map: "idx_trajet_zone")
+  @@index([statut], map: "idx_trajet_statut")
+}
+
+model utilisateur {
+  id_utilisateur                       String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  keycloak_id                          String?                  @unique @db.Uuid
+  numero_telephone                     String                   @unique @db.VarChar(20)
+  phone                                String?                  @unique @db.VarChar(20)
+  email                                String                   @unique @db.VarChar(255)
+  nom                                  String                   @db.VarChar(100)
+  prenom                               String                   @db.VarChar(100)
+  mot_de_passe_hash                    String?
+  /// Flag indicating user must change their password on first login
+  mot_de_passe_temporaire              Boolean                  @default(false)
+  photo_profil                         String?
+  adresse                              String?
+  tentatives_connexion                 Int                      @default(0)
+  bloque_jusqu_au                      DateTime?
+  date_inscription                     DateTime                 @default(now()) @db.Timestamp(6)
+  statut_compte                        statut_compte            @default(actif)
+  note_moyenne                         Decimal?                 @db.Decimal(3, 2)
+  /// Soft delete : null = actif, date = supprimé le
+  supprime_le                          DateTime?
+  auth_provider                        String                   @default("email") @db.VarChar(20)
+  deux_fa_activee                      Boolean                  @default(false)
+  reset_token                          String?                  @db.Uuid
+  reset_token_expire                   DateTime?                @db.Timestamp(6)
+  active_role                          String?                  @db.VarChar(20)
+  /// OTP Auth (Phase 5): Technical password encrypted with AES-256-GCM
+  /// Format: "iv:encryptedData:authTag" (hex)
+  tech_password_encrypted              String?                  @db.Text
+  /// User authenticated via OTP SMS
+  auth_method_otp                      Boolean                  @default(false)
+  /// Admin who created this user (for audit)
+  created_by                           String?                  @db.Uuid
+  /// Invitation system (for account activation)
+  invitation_token                     String?                  @unique @db.Uuid
+  invitation_token_expire              DateTime?                @db.Timestamp(6)
+  invitation_sent_at                   DateTime?                @db.Timestamp(6)
+  invitation_used_at                   DateTime?                @db.Timestamp(6)
+  invitation_resend_count              Int                      @default(0)
+  ticket                               ticket[]
+  remboursement                        remboursement[]
+  remboursement_traite                 remboursement[]          @relation("remboursement_agent")
+  avis_avis_id_evaluateurToutilisateur avis[]                   @relation("avis_id_evaluateurToutilisateur")
+  avis_avis_id_evalueToutilisateur     avis[]                   @relation("avis_id_evalueToutilisateur")
+  chauffeur                            chauffeur?
+  document                             document[]
+  gestionnaire                         gestionnaire_parking?
+  incident_securite                    incident_securite[]
+  notification                         notification[]
+  password_reset_tokens                password_reset_token[]
+  paiement                             paiement[]
+  passager                             passager?
+  portefeuille                         portefeuille?
+  proprietaire                         proprietaire?
+  utilisateur_role                     utilisateur_role[]
+  utilisation_promo                    utilisation_promo[]
+  provisioning_incidents               provisioning_incidents[]
+  journal_parking                      journal_parking[]
+  maintenance_requests                 maintenance[]
+  photos                               photo[]
+  addresses                            address[]
+  contacts                             contact_de_confiance[]
+  demande_extensions                   demande_extension[]
+}
+
+model password_reset_token {
+  id             String      @id @default(uuid()) @db.Uuid
+  token_hash     String      @unique
+  id_utilisateur String      @db.Uuid
+  keycloak_id    String
+  expires_at     DateTime
+  created_at     DateTime    @default(now())
+  created_ip     String?
+  used_at        DateTime?
+  used_ip        String?
+  utilisateur    utilisateur @relation(fields: [id_utilisateur], references: [id_utilisateur], onDelete: Cascade)
+
+  @@index([id_utilisateur, used_at])
+  @@index([expires_at])
+}
+
+model utilisateur_role {
+  id_utilisateur     String      @db.Uuid
+  role               String      @db.VarChar(20)
+  actif              Boolean     @default(true)
+  date_activation    DateTime    @default(now()) @db.Timestamp(6)
+  date_desactivation DateTime?   @db.Timestamp(6)
+  utilisateur        utilisateur @relation(fields: [id_utilisateur], references: [id_utilisateur], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([id_utilisateur, role])
+}
+
+model utilisation_promo {
+  id_utilisateur   String      @db.Uuid
+  id_promo         String      @db.Uuid
+  id_trajet        String      @db.Uuid
+  date_utilisation DateTime    @default(now()) @db.Timestamp(6)
+  code_promo       code_promo  @relation(fields: [id_promo], references: [id_promo], onDelete: NoAction, onUpdate: NoAction)
+  trajet           trajet      @relation(fields: [id_trajet], references: [id_trajet], onDelete: NoAction, onUpdate: NoAction)
+  utilisateur      utilisateur @relation(fields: [id_utilisateur], references: [id_utilisateur], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([id_utilisateur, id_promo])
+  @@index([id_trajet], map: "idx_utilisation_promo_trajet")
+}
+
+// ── SUPERTYPE
+model vehicule {
+  id_vehicule             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_proprietaire         String         @db.Uuid
+  id_parking              String?        @db.Uuid
+  id_categorie            String         @db.Uuid
+  immatriculation         String         @unique @db.VarChar(20)
+  marque                  String         @db.VarChar(60)
+  modele                  String         @db.VarChar(60)
+  annee                   Int            @db.SmallInt
+  nb_places               Int            @db.SmallInt
+  couleur                 String?        @db.VarChar(30)
+  statut                  StatutVehicule @default(disponible)
+  supprime_le             DateTime?
+  climatisation           Boolean        @default(false)
+  gps_actif               Boolean        @default(false)
+  latitude_actuelle       Decimal?       @db.Decimal(10, 7)
+  longitude_actuelle      Decimal?       @db.Decimal(10, 7)
+  fonds_genere            Decimal?       @db.Decimal(12, 2) // Total funds generated by this vehicle (for ranking propriétaires)
+
+  // relations communes aux deux sous-types
+  proprietaire         proprietaire        @relation(fields: [id_proprietaire], references: [id_proprietaire])
+  categorie_vehicule   categorie_vehicule  @relation(fields: [id_categorie], references: [id_categorie])
+  parking              parking?            @relation(fields: [id_parking], references: [id_parking])
+  journal_parking      journal_parking[]
+  tracking_vehicule    tracking_vehicule[]
+  maintenance_requests maintenance[]
+  photos               photo[]
+  documents            document[]
+
+  // sous-types
+  vehicule_course   vehicule_course? // ← spécialisation course
+  vehicule_location vehicule_location? // ← spécialisation location
+
+  @@index([id_categorie], map: "idx_vehicule_categorie")
+  @@index([id_proprietaire], map: "idx_vehicule_proprietaire")
+}
+
+// ── SOUS-TYPE 1 : Course ─────────────────────────────────
+model vehicule_course {
+  id_vehicule  String @id @db.Uuid // PK partagée, pas de gen_random_uuid()
+  type_service String @db.VarChar(20) // "standard", "premium"...
+  id_chauffeur String @db.Uuid
+
+  chauffeur            chauffeur             @relation(fields: [id_chauffeur], references: [id_chauffeur], onDelete: NoAction)
+  vehicule             vehicule              @relation(fields: [id_vehicule], references: [id_vehicule], onDelete: Cascade)
+  affectation_vehicule affectation_vehicule?
+}
+
+// ── SOUS-TYPE 2 : Location ────────────────────────────────
+model vehicule_location {
+  id_vehicule             String   @id @db.Uuid
+  tarif_base_location     Decimal? @db.Decimal(10, 2)
+  tarif_par_jour_location Decimal? @db.Decimal(10, 2)
+
+  vehicule vehicule   @relation(fields: [id_vehicule], references: [id_vehicule], onDelete: Cascade)
+  location location[]
+}
+
+model affectation_vehicule {
+  id_affectation String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_vehicule    String    @unique(where: raw("(est_active = true)")) @db.Uuid
+  id_chauffeur   String    @db.Uuid
+  date_debut     DateTime  @default(now()) @db.Timestamp(6)
+  date_fin       DateTime? @db.Timestamp(6)
+  est_active     Boolean   @default(true)
+  motif_fin      String?   @db.VarChar(50)
+
+  vehicule_course vehicule_course @relation(fields: [id_vehicule], references: [id_vehicule], onDelete: NoAction) // ← corrigé
+  chauffeur       chauffeur       @relation(fields: [id_chauffeur], references: [id_chauffeur], onDelete: NoAction)
+  trajet          trajet[]
+}
+
+model zone_tarifaire {
+  id_zone              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nom                  String                 @db.VarChar(60)
+  coefficient_max      Decimal                @default(3.0) @db.Decimal(4, 2)
+  supprime_le          DateTime?              @db.Timestamp(6)
+  vitesse_moyenne_kmh  Int                    @default(60) @db.SmallInt
+  actif                Boolean                @default(true)
+  trajet               trajet[]
+  tarif_categorie_zone tarif_categorie_zone[]
+}
+
+model categorie_vehicule {
+  id_categorie String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nom          NomCategorie
+  description  String?
+  actif        Boolean      @default(true)
+
+  vehicule             vehicule[]
+  tarif_categorie_zone tarif_categorie_zone[]
+}
+
+model tarif_categorie_zone {
+  id_zone      String @db.Uuid
+  id_categorie String @db.Uuid
+
+  tarif_base   Decimal @db.Decimal(8, 2)
+  tarif_km     Decimal @db.Decimal(6, 2)
+  tarif_minute Decimal @db.Decimal(6, 2)
+  actif        Boolean @default(true)
+
+  zone_tarifaire     zone_tarifaire     @relation(fields: [id_zone], references: [id_zone], onDelete: NoAction, onUpdate: NoAction)
+  categorie_vehicule categorie_vehicule @relation(fields: [id_categorie], references: [id_categorie], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([id_zone, id_categorie])
+  @@index([id_zone], map: "idx_tarif_zone")
+  @@index([id_categorie], map: "idx_tarif_categorie")
+}
+
+model detail_trajet_passager {
+  id_trajet   String @db.Uuid
+  id_passager String @db.Uuid
+
+  date_embarquement   DateTime @default(now())
+  prix_paye           Decimal  @db.Decimal(10, 2)
+  nb_places_reservees Int      @default(1)
+
+  trajet   trajet   @relation(fields: [id_trajet], references: [id_trajet], onDelete: Cascade)
+  passager passager @relation(fields: [id_passager], references: [id_passager], onDelete: Cascade)
+
+  @@id([id_trajet, id_passager])
+}
+
+model ticket {
+  id_ticket              String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_utilisateur         String          @db.Uuid
+  sujet                  sujet_ticket
+  description            String
+  statut                 ticket_statut   @default(ouvert)
+  eligible_remboursement Boolean         @default(false)
+  id_location            String?         @db.Uuid
+  /// Ticket lié à un trajet spécifique
+  id_trajet              String?         @db.Uuid
+  /// Ticket lié à un paiement spécifique
+  id_paiement            String?         @db.Uuid
+  /// Agent support assigné au ticket
+  date_creation          DateTime        @default(now()) @db.Timestamp(6)
+  date_resolution        DateTime?       @db.Timestamp(6)
+  conversation           conversation?
+  location               location?       @relation(fields: [id_location], references: [id_location], onDelete: NoAction, onUpdate: NoAction)
+  utilisateur            utilisateur     @relation(fields: [id_utilisateur], references: [id_utilisateur], onDelete: NoAction, onUpdate: NoAction)
+  trajet                 trajet?         @relation(fields: [id_trajet], references: [id_trajet], onDelete: NoAction, onUpdate: NoAction)
+  remboursement          remboursement[]
+
+  @@index([id_utilisateur], map: "idx_ticket_utilisateur")
+  @@index([statut], map: "idx_ticket_statut")
+  @@index([id_trajet], map: "idx_ticket_trajet")
+}
+
+model remboursement {
+  id_remboursement String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_ticket        String               @db.Uuid
+  id_utilisateur   String               @db.Uuid
+  /// Token unique pour éviter les doublons (idempotence)
+  id_idempotence   String               @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  montant          Decimal              @db.Decimal(12, 2)
+  motif            String
+  statut           remboursement_statut @default(en_attente)
+  id_agent         String?              @db.Uuid
+  date_demande     DateTime             @default(now()) @db.Timestamp(6)
+  date_traitement  DateTime?            @db.Timestamp(6)
+
+  ticket      ticket       @relation(fields: [id_ticket], references: [id_ticket], onDelete: NoAction, onUpdate: NoAction)
+  utilisateur utilisateur  @relation(fields: [id_utilisateur], references: [id_utilisateur], onDelete: NoAction, onUpdate: NoAction)
+  agent       utilisateur? @relation("remboursement_agent", fields: [id_agent], references: [id_utilisateur], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([id_ticket], map: "idx_remboursement_ticket")
+  @@index([id_utilisateur], map: "idx_remboursement_utilisateur")
+}
+
+model auth_log {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id    String?  @db.Uuid
+  event_type String   @db.VarChar(50)
+  channel    String?  @db.VarChar(20)
+  ip_address String?  @db.VarChar(45)
+  user_agent String?
+  metadata   Json?
+  created_at DateTime @default(now()) @db.Timestamp(6)
+
+  @@index([user_id], map: "idx_auth_log_user")
+  @@index([event_type], map: "idx_auth_log_event_type")
+  @@index([created_at], map: "idx_auth_log_created_at")
+}
+
+model moyens_paiement {
+  id_moyen_paiement  String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type               TypeMoyenPaiement
+  details            Json
+  actif              Boolean           @default(true)
+  date_ajout         DateTime          @default(now()) @db.Timestamp(6)
+  date_desactivation DateTime?         @db.Timestamp(6)
+
+  paiements paiement[] // ✅ liste virtuelle (pas de colonne SQL)
+}
+
+model provisioning_incidents {
+  id_incident      String                     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type             ProvisioningIncidentType
+  status           ProvisioningIncidentStatus @default(pending)
+  user_email       String?                    @db.VarChar(255)
+  keycloak_id      String?                    @db.Uuid
+  id_utilisateur   String?                    @db.Uuid
+  error_message    String?
+  error_details    Json?
+  created_at       DateTime                   @default(now()) @db.Timestamp(6)
+  resolved_at      DateTime?                  @db.Timestamp(6)
+  resolved_by      String?                    @db.VarChar(255) // Admin who resolved it
+  resolution_notes String?
+
+  utilisateur utilisateur? @relation(fields: [id_utilisateur], references: [id_utilisateur], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([type], map: "idx_provisioning_incidents_type")
+  @@index([status], map: "idx_provisioning_incidents_status")
+  @@index([created_at], map: "idx_provisioning_incidents_created_at")
+}
+
+model conversation {
+  id_conversation String   @id @default(uuid()) @db.Uuid
+  id_trajet       String?  @unique @db.Uuid
+  id_location     String?  @unique @db.Uuid
+  id_ticket       String?  @unique @db.Uuid
+  createdAt       DateTime @default(now()) @db.Timestamp(6)
+
+  trajet       trajet?                    @relation(fields: [id_trajet], references: [id_trajet], onDelete: Cascade)
+  location     location?                  @relation(fields: [id_location], references: [id_location], onDelete: Cascade)
+  ticket       ticket?                    @relation(fields: [id_ticket], references: [id_ticket], onDelete: Cascade)
+  participants conversation_participant[]
+  messages     message[]
+
+  @@index([id_trajet])
+  @@index([id_location])
+  @@index([id_ticket])
+}
+
+model conversation_participant {
+  id_conversation String @db.Uuid
+  id_utilisateur  String @db.Uuid
+
+  conversation conversation @relation(fields: [id_conversation], references: [id_conversation], onDelete: Cascade)
+
+  @@id([id_conversation, id_utilisateur])
+  @@index([id_utilisateur])
+}
+
+model message {
+  id_message      String    @id @default(uuid()) @db.Uuid
+  id_conversation String    @db.Uuid
+  id_expediteur   String    @db.Uuid
+  nom_expediteur  String    @db.VarChar(100)
+  contenu         String
+  lu              Boolean   @default(false)
+  date_envoi      DateTime  @default(now()) @db.Timestamp(6)
+  date_lecture    DateTime? @db.Timestamp(6)
+
+  conversation conversation @relation(fields: [id_conversation], references: [id_conversation], onDelete: Cascade)
+
+  @@index([id_conversation])
+  @@index([id_expediteur])
+}
+
+model photo {
+  id_photo String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  owner_type photo_owner_type
+
+  id_vehicule String? @db.Uuid
+
+  id_utilisateur String? @db.Uuid
+
+  id_mouvement String? @db.Uuid
+
+  filename String @db.VarChar(255)
+
+  fileKey String @unique
+
+  filepath String? @db.Text
+
+  mimeType String @db.VarChar(100)
+
+  fileSize BigInt
+
+  storageHash String? @db.VarChar(64)
+
+  // Organisation galerie
+
+  is_principale Boolean @default(false) // photo de couverture
+
+  ordre Int @default(0) // tri dans la galerie
+
+  legende String? @db.VarChar(255)
+
+  uploadedAt DateTime @default(now()) @db.Timestamp(6)
+
+  deletedAt DateTime? @db.Timestamp(6) // soft delete, cohérent avec document
+
+  vehicule vehicule? @relation(fields: [id_vehicule], references: [id_vehicule], onDelete: Cascade)
+
+  utilisateur utilisateur? @relation(fields: [id_utilisateur], references: [id_utilisateur], onDelete: Cascade)
+
+  journal_parking journal_parking? @relation(fields: [id_mouvement], references: [id_log], onDelete: Cascade)
+
+  @@index([owner_type])
+  @@index([id_vehicule], map: "idx_photo_vehicule")
+  @@index([id_utilisateur], map: "idx_photo_utilisateur")
+}
+
+model address {
+  id_address String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_user    String   @db.Uuid
+  label      String   @db.VarChar(100)
+  address    String
+  isfavorite Boolean  @default(false)
+  latitude   Decimal  @db.Decimal(10, 7)
+  longitude  Decimal  @db.Decimal(10, 7)
+  createdAt  DateTime @default(now()) @db.Timestamp(6)
+  updatedAt  DateTime @updatedAt @db.Timestamp(6)
+
+  utilisateur utilisateur @relation(fields: [id_user], references: [id_utilisateur], onDelete: Cascade)
+
+  @@index([id_user], map: "idx_address_user")
+  @@index([isfavorite], map: "idx_address_favorite")
+}
+
+model contact_de_confiance {
+  id_contact   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_user      String    @db.Uuid
+  nom          String    @db.VarChar(100)
+  prenom       String    @db.VarChar(100)
+  country_code String    @db.VarChar(6)
+  phone        String    @db.VarChar(20)
+  relation     relation
+  createdAt    DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt    DateTime  @updatedAt @db.Timestamp(6)
+  deletedAt    DateTime? @db.Timestamp(6) // Soft delete
+
+  utilisateur utilisateur @relation(fields: [id_user], references: [id_utilisateur], onDelete: Cascade)
+
+  @@index([id_user], map: "idx_contact_user")
+  @@index([relation], map: "idx_contact_relation")
+  @@index([deletedAt], map: "idx_contact_deletedat")
+}
+
+model trajet_partage {
+  id_partage       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_trajet        String   @db.Uuid
+  cree_par         String   @db.Uuid
+  token            String   @unique @db.VarChar(12)
+  expire_a         DateTime @db.Timestamp(6)
+  actif            Boolean  @default(true)
+  nb_consultations Int      @default(0)
+  cree_le          DateTime @default(now()) @db.Timestamp(6)
+
+  trajet trajet @relation(fields: [id_trajet], references: [id_trajet], onDelete: Cascade)
+
+  @@index([token], map: "idx_trajet_partage_token")
+  @@index([id_trajet], map: "idx_trajet_partage_trajet")
+  @@index([cree_par], map: "idx_trajet_partage_createur")
+}
+
+model faq {
+  id_faq          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  question        String    @db.VarChar(255)
+  reponse         String    @db.Text
+  categorie       String?   @db.VarChar(50)
+  ordre           Int       @default(0)
+  isActive        Boolean   @default(true)
+  helpfulCount    Int       @default(0)
+  notHelpfulCount Int       @default(0)
+  viewCount       Int       @default(0)
+  createdAt       DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamp(6)
+  deletedAt       DateTime? @db.Timestamp(6)
+
+  @@index([ordre], map: "idx_faq_ordre")
+  @@index([categorie], map: "idx_faq_categorie")
+  @@index([isActive], map: "idx_faq_active")
+  @@index([deletedAt], map: "idx_faq_deletedat")
+}

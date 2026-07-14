@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bienvenue sur N'DJIGI</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background-color: #f5f5f5; color: #333; line-height: 1.6; }
+    .container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .header { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 40px 20px; text-align: center; }
+    .header h1 { font-size: 28px; margin-bottom: 10px; }
+    .header p { font-size: 14px; opacity: 0.9; }
+    .content { padding: 40px 30px; }
+    .section { margin-bottom: 30px; }
+    .section h2 { font-size: 18px; color: #1e3c72; margin-bottom: 15px; font-weight: 600; }
+    .credentials-box { background-color: #f9f9f9; border-left: 4px solid #2a5298; padding: 15px; margin-bottom: 20px; border-radius: 4px; font-family: 'Courier New', monospace; font-size: 14px; }
+    .credentials-box p { margin-bottom: 10px; }
+    .credentials-box strong { color: #1e3c72; }
+    .warning { background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; }
+    .steps { list-style: none; }
+    .steps li { padding: 10px 0; font-size: 14px; }
+    .steps li:before { content: "✓ "; color: #2a5298; font-weight: bold; margin-right: 8px; }
+    .parkings-list { background-color: #f9f9f9; border-left: 4px solid #2a5298; padding: 15px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; }
+    .parkings-list p { margin-bottom: 8px; }
+    .cta-button { display: inline-block; background-color: #2a5298; color: white; padding: 14px 40px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 16px; margin: 30px 0; text-align: center; }
+    .cta-button:hover { background-color: #1e3c72; }
+    .support { background-color: #e7f3ff; border-left: 4px solid #2a5298; padding: 15px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; }
+    .support p { margin-bottom: 10px; }
+    .support a { color: #2a5298; text-decoration: none; font-weight: 600; }
+    .footer { background-color: #f5f5f5; padding: 20px 30px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #eee; }
+    .footer p { margin-bottom: 8px; }
+    @media (max-width: 600px) {
+      .container { margin: 0; border-radius: 0; }
+      .content { padding: 20px 15px; }
+      .header { padding: 30px 15px; }
+      .header h1 { font-size: 24px; }
+      .section h2 { font-size: 16px; }
+      .cta-button { padding: 12px 30px; font-size: 14px; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>Bienvenue sur N'DJIGI</h1>
+      <p>Votre compte gestionnaire de parking</p>
+    </div>
+
+    <!-- Main Content -->
+    <div class="content">
+      <p>Bonjour <strong>{{prenom}} {{nom}}</strong>,</p>
+      <p style="margin-top: 15px; margin-bottom: 20px;">Bienvenue sur N'DJIGI ! Un compte gestionnaire de parking vient d'être créé pour vous par l'administrateur.</p>
+
+      <!-- Credentials Section -->
+      <div class="section">
+        <h2>📋 VOS IDENTIFIANTS</h2>
+        <div class="credentials-box">
+          <p><strong>Email :</strong> {{email}}</p>
+          <p><strong>Mot de passe provisoire :</strong> {{tempPassword}}</p>
+        </div>
+      </div>
+
+      <!-- Warning Section -->
+      <div class="warning">
+        <strong>⚠️ Important :</strong> Ce mot de passe ne fonctionnera qu'une seule fois. Vous devrez en choisir un nouveau dès votre première connexion.
+      </div>
+
+      <!-- First Connection Section -->
+      <div class="section">
+        <h2>🔐 POUR VOTRE PREMIÈRE CONNEXION</h2>
+        <ol class="steps">
+          <li>Rendez-vous sur N'DJIGI et connectez-vous</li>
+          <li>Choisissez votre nouveau mot de passe personnel</li>
+          <li>Confirmez votre adresse email (un code vous sera envoyé)</li>
+          <li>Activez la sécurité par SMS sur votre téléphone</li>
+          <li>Accédez à votre espace de gestion</li>
+        </ol>
+        <a href="{{appUrl}}/login" class="cta-button">Accéder à mon compte</a>
+      </div>
+
+      <!-- Parkings Section -->
+      <div class="section">
+        <h2>🅿️ VOS PARKINGS</h2>
+        <div class="parkings-list">
+          {{{parkingsList}}}
+        </div>
+      </div>
+
+      <!-- Description -->
+      <div class="section">
+        <p style="font-size: 14px; color: #555;">Vous pourrez suivre vos parkings au quotidien, consulter les revenus et superviser vos opérations directement depuis votre espace.</p>
+      </div>
+
+      {{#if supportWhatsapp}}
+      <!-- Support Section -->
+      <div class="support">
+        <p><strong>Besoin d'aide ?</strong></p>
+        <p>Contactez-nous sur WhatsApp : <a href="https://wa.me/{{supportWhatsappNumber}}?text=Bonjour%20N'DJIGI">{{supportWhatsapp}}</a></p>
+      </div>
+      {{/if}}
+
+      <!-- Closing -->
+      <div style="margin-top: 30px; text-align: center; color: #555;">
+        <p><strong>À très vite sur N'DJIGI !</strong></p>
+        <p style="margin-top: 10px;">L'équipe N'DJIGI</p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
+    </div>
+  </div>
+</body>
+</html>
