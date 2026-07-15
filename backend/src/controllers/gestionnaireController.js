@@ -130,7 +130,7 @@ const GestionnaireController = {
         })
       }
 
-      console.error('❌ Gestionnaire creation error:', error.message)
+      console.error('❌ Gestionnaire creation error:', error.response?.data || error.message || error)
       res.status(500).json({
         success: false,
         message: 'Erreur serveur lors de la création.',

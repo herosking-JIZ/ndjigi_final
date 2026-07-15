@@ -286,11 +286,31 @@ const KeycloakAuthController = {
         }
       });
     } catch (error) {
+      // OAuth client-level misconfiguration (wrong/stale KEYCLOAK_CLIENT_SECRET, disabled client,
+      // etc.) is an operator/config bug, NOT a user auth failure — never disguise it as a wrong
+      // password, since that masks the real problem from whoever is debugging.
+      const isClientAuthFailure = error.keycloakErrorCode === 'invalid_client_credentials'
+        || error.keycloakErrorCode === 'invalid_client';
+
+      if (isClientAuthFailure) {
+        logger.error({
+          event: 'keycloak_client_auth_failure',
+          message: error.message,
+          keycloakErrorCode: error.keycloakErrorCode
+        });
+        return res.status(500).json({
+          success: false,
+          message: "Erreur de configuration du service d'authentification.",
+          code: 'AUTH_SERVICE_MISCONFIGURED',
+          data: null
+        });
+      }
+
       console.error('❌ Login error:', error.message);
       console.error('Stack:', error.stack);
 
-      // Distinguer les erreurs Keycloak
-      if (error.message.includes('Login failed') || error.message.includes('Invalid user credentials')) {
+      // Genuine end-user credential failure
+      if (error.keycloakErrorCode === 'invalid_grant' || error.message.includes('Invalid user credentials')) {
         return res.status(401).json({
           success: false,
           message: 'Email ou mot de passe incorrect.',

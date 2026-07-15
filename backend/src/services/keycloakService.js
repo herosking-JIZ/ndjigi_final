@@ -129,7 +129,9 @@ async function login(email, password) {
   } catch (error) {
     const errorData = error.response?.data || {};
     const message = errorData.error_description || error.message;
-    throw new Error(`Login failed: ${message}`);
+    const kcError = new Error(`Login failed: ${message}`);
+    kcError.keycloakErrorCode = errorData.error || null; // e.g. 'invalid_client_credentials', 'invalid_grant'
+    throw kcError;
   }
 }
 

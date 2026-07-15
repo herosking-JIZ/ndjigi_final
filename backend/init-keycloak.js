@@ -101,6 +101,10 @@ async function createClients() {
           name: 'N\'DJIGI Backend',
           enabled: true,
           clientAuthenticatorType: 'client-secret',
+          // Only takes effect on first-ever client creation (POST below 409s and no-ops if the
+          // client already exists — see catch below). Not authoritative afterward: the live secret
+          // is docker-compose.yml's backend.environment.KEYCLOAK_CLIENT_SECRET. If they diverge,
+          // regenerate via POST /admin/realms/ndjigi/clients/{id}/client-secret and update that file.
           secret: 'G86nsu5BwsbS5no2HB76HWuTmprCorte',
           publicClient: false,
           standardFlowEnabled: true,

@@ -20,6 +20,8 @@ async function sleep(ms) {
 async function getKeycloakAdminToken() {
   try {
     console.log(`   Calling: ${KEYCLOAK_URL}/realms/ndjigi/protocol/openid-connect/token`);
+    // Stale ad-hoc test value — must match the live Keycloak client secret
+    // (docker-compose.yml backend.environment.KEYCLOAK_CLIENT_SECRET) to work.
     const response = await axios.post(
       `${KEYCLOAK_URL}/realms/ndjigi/protocol/openid-connect/token`,
       'client_id=ndjigi-backend&client_secret=W4HZH0Wf8TnGUjv6E2XMOrAl2hlXTzlM&grant_type=client_credentials',
