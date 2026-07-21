@@ -7,10 +7,8 @@
 <!-- template: login.ftl -->
 
     <#if section = "header">
-        <span style="display: flex; align-items: center; justify-content: center; gap: 10px;">
-            <i class="fas fa-lock" style="font-size: 20px;"></i>
-            ${msg("loginAccountTitle")}
-        </span>
+        <span class="ndjigi-page-title">${msg("ndjigiWelcome")}</span>
+        <span class="ndjigi-page-subtitle">${msg("ndjigiLoginSubtitle")}</span>
     <#elseif section = "form">
         <div id="kc-form">
           <div id="kc-form-wrapper">

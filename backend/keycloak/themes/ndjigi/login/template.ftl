@@ -139,8 +139,13 @@
 <div class="${properties.kcLogin!}">
   <div class="${properties.kcLoginContainer!}">
     <header id="kc-header" class="pf-v5-c-login__header">
-      <div id="kc-header-wrapper"
-              class="pf-v5-c-brand">${kcSanitize(msg("loginTitleHtml",(realm.displayNameHtml!'')))?no_esc}</div>
+      <div id="kc-header-wrapper" class="pf-v5-c-brand ndjigi-brand">
+                            <div class="ndjigi-wordmark" aria-label="N'DJIGI">
+                                <span class="ndjigi-mark" aria-hidden="true">N</span>
+                                <span class="ndjigi-name">N<span class="ndjigi-apostrophe">'</span>DJIGI</span>
+                            </div>
+        <p class="ndjigi-tagline">${msg("ndjigiTagline")}</p>
+      </div>
     </header>
     <main class="${properties.kcLoginMain!}">
       <div class="${properties.kcLoginMainHeader!}">
