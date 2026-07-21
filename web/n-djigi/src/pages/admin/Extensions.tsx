@@ -4,7 +4,7 @@ import { demandeExtensionService } from '@/services/api'
 import { StatusBadge } from '@/components/StatusBadge'
 import { useToast } from '@/hooks/useToast'
 import { formatDate } from '@/lib/utils'
-import type { DemandeExtension } from '@/types'
+import type { DemandeExtension, Document } from '@/types'
 
 // ─── Labels statuts ──────────────────────────────────────────────
 const STATUT_MAP: Record<string, { label: string; cls: string }> = {
@@ -66,6 +66,41 @@ function DemandeModal({ demande, onClose, onUpdated }: DemandeModalProps) {
     }
   }
 
+  const handleVoirDocument = async (doc: Document) => {
+    // Ouvrir l'onglet pendant le clic utilisateur. Attendre la requête avant
+    // window.open() peut être interprété comme une popup par le navigateur.
+    const viewer = window.open('', '_blank')
+
+    if (!viewer) {
+      toast({
+        title: 'Ouverture bloquée',
+        description: 'Autorisez les fenêtres contextuelles pour consulter le document.',
+        variant: 'destructive'
+      })
+      return
+    }
+
+    viewer.document.title = 'Chargement du document…'
+    viewer.document.body.textContent = 'Chargement du document…'
+
+    try {
+      const api = (await import('@/services/api')).default
+      const response = await api.get(
+        `/documents/${doc.id_document}/fichier?inline=true`,
+        { responseType: 'blob' }
+      )
+      const blobUrl = URL.createObjectURL(response.data)
+      viewer.location.replace(blobUrl)
+
+      // Laisser suffisamment de temps au navigateur pour charger les fichiers
+      // volumineux avant de libérer l'URL locale.
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000)
+    } catch {
+      viewer.close()
+      toast({ title: 'Erreur', description: 'Impossible d\'ouvrir le document', variant: 'destructive' })
+    }
+  }
+
   const utilisateur = demande.utilisateur
   const pc = STATUT_MAP[demande.statut] ?? STATUT_MAP.en_attente
   const isProcessed = demande.statut !== 'en_attente'
@@ -73,7 +108,7 @@ function DemandeModal({ demande, onClose, onUpdated }: DemandeModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <div
-        className="bg-card border border-border rounded-2xl p-6 w-full max-w-2xl shadow-2xl animate-fade-in overflow-y-auto max-h-[90vh]"
+        className="bg-white text-slate-900 border border-border rounded-2xl p-6 w-full max-w-2xl shadow-2xl animate-fade-in overflow-y-auto max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* En-tête */}
@@ -146,9 +181,9 @@ function DemandeModal({ demande, onClose, onUpdated }: DemandeModalProps) {
                        doc.statut_verification === 'valide' ? 'Validé' : 'Rejeté'}
                     </span>
                     {doc.url_fichier && (
-                      <a href={doc.url_fichier} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                      <button type="button" onClick={() => handleVoirDocument(doc)} className="text-primary hover:underline">
                         <Eye className="h-4 w-4" />
-                      </a>
+                      </button>
                     )}
                   </div>
                 </div>

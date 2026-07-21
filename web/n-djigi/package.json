@@ -41,6 +41,7 @@
     "react-leaflet": "^4.2.1",
     "react-router-dom": "^6.28.1",
     "recharts": "^2.14.1",
+    "socket.io-client": "^4.8.3",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7"
   },

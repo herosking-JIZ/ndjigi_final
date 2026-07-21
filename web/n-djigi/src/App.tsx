@@ -111,9 +111,9 @@ function AppRoutes() {
             isAdmin ? (
               <Dashboard />
             ) : isManager ? (
-              <ManagerDashboard />
-            ) : (
               <ParkeurHome />
+            ) : (
+              <Navigate to="/login" replace />
             )
           }
         />
@@ -134,19 +134,19 @@ function AppRoutes() {
         {/* Routes parkeur */}
         <Route
           path="parkeur"
-          element={<ProtectedRoute><ParkeurHome /></ProtectedRoute>}
+          element={<ProtectedRoute managerOnly><ParkeurHome /></ProtectedRoute>}
         />
         <Route
           path="parkeur/flux"
-          element={<ProtectedRoute><ParkeurFlux /></ProtectedRoute>}
+          element={<ProtectedRoute managerOnly><ParkeurFlux /></ProtectedRoute>}
         />
         <Route
           path="parkeur/maintenance"
-          element={<ProtectedRoute><ParkeurMaintenance /></ProtectedRoute>}
+          element={<ProtectedRoute managerOnly><ParkeurMaintenance /></ProtectedRoute>}
         />
         <Route
           path="parkeur/vehicules"
-          element={<ProtectedRoute><ParkeurVehicules /></ProtectedRoute>}
+          element={<ProtectedRoute managerOnly><ParkeurVehicules /></ProtectedRoute>}
         />
 
         {/* Routes admin */}

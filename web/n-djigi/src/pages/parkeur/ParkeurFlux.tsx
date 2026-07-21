@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Search, AlertTriangle } from 'lucide-react'
+import { Search, AlertTriangle, Camera } from 'lucide-react'
 import { parkeurService } from '@/services/api'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/useToast'
@@ -7,6 +7,7 @@ import { NdjButton } from '@/components/NdjButton'
 import { NdjTextField } from '@/components/NdjTextField'
 import { SelectionCard } from '@/components/SelectionCard'
 import { formatDate } from '@/lib/utils'
+import { SecureParkingPhoto } from '@/components/MaintenanceTile'
 import type { VehiculeParking, MouvementParking, EtatVehiculeParking } from '@/types'
 
 type TabType = 'entree' | 'sortie' | 'historique'
@@ -42,6 +43,8 @@ export default function ParkeurFlux() {
   const [form, setForm] = useState<FluxForm>(DEFAULT_FORM)
   const [selectedVehicule, setSelectedVehicule] = useState<VehiculeParking | null>(null)
   const [showStateWarning, setShowStateWarning] = useState(false)
+  const [historyPage, setHistoryPage] = useState(1)
+  const [historyTotalPages, setHistoryTotalPages] = useState(1)
 
   const parkingId = user?.parking_id
 
@@ -51,13 +54,17 @@ export default function ParkeurFlux() {
     try {
       if (tab === 'historique') {
         const data = await parkeurService.mouvementsParkeur(parkingId, {
-          page: 1,
-          limit: 50,
-          search: search,
+          page: historyPage,
+          limit: 20,
+          search,
         })
         setMouvements(data.data)
+        setHistoryTotalPages(data.totalPages || 1)
       } else {
-        const data = await parkeurService.vehiculesGares(parkingId)
+        const data = await parkeurService.vehiculesGares(parkingId, {
+          presence: tab === 'entree' ? 'absent' : 'present',
+          search: search || undefined,
+        })
         setVehicules(data)
       }
     } catch {
@@ -65,7 +72,7 @@ export default function ParkeurFlux() {
     } finally {
       setLoading(false)
     }
-  }, [parkingId, tab, search])
+  }, [parkingId, tab, search, historyPage])
 
   useEffect(() => {
     loadData()
@@ -80,7 +87,7 @@ export default function ParkeurFlux() {
   }
 
   const handleSubmit = async () => {
-    if (!parkingId || !user?.id_utilisateur) return
+    if (!parkingId) return
     if (!form.immatriculation) {
       toast({ title: 'Veuillez saisir une immatriculation', variant: 'destructive' })
       return
@@ -95,7 +102,6 @@ export default function ParkeurFlux() {
       if (tab === 'entree') {
         await parkeurService.enregistrerEntree(parkingId, {
           id_vehicule: selectedVehicule.id_vehicule,
-          id_utilisateur: user.id_utilisateur,
           etat_vehicule: form.etat_vehicule,
           commentaire: form.commentaire,
         })
@@ -107,7 +113,6 @@ export default function ParkeurFlux() {
       } else if (tab === 'sortie') {
         await parkeurService.enregistrerSortie(parkingId, {
           id_vehicule: selectedVehicule.id_vehicule,
-          id_utilisateur: user.id_utilisateur,
           etat_vehicule: form.etat_vehicule,
           commentaire: form.commentaire,
         })
@@ -122,6 +127,17 @@ export default function ParkeurFlux() {
       toast({ title: 'Erreur lors de l\'enregistrement', variant: 'destructive' })
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleMovementPhoto = async (mouvementId: string, file?: File) => {
+    if (!parkingId || !file) return
+    try {
+      await parkeurService.uploadPhotoMouvement(parkingId, mouvementId, file)
+      toast({ title: 'Photo ajoutée', variant: 'success' })
+      await loadData()
+    } catch {
+      toast({ title: "Échec de l'ajout de la photo", variant: 'destructive' })
     }
   }
 
@@ -151,6 +167,7 @@ export default function ParkeurFlux() {
               setForm(DEFAULT_FORM)
               setSelectedVehicule(null)
               setSearch('')
+              setHistoryPage(1)
             }}
             className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
               tab === t
@@ -183,8 +200,10 @@ export default function ParkeurFlux() {
                   type="text"
                   value={form.immatriculation}
                   onChange={(e) => {
-                    setForm({ ...form, immatriculation: e.target.value.toUpperCase() })
-                    setSearch(e.target.value)
+                    const value = e.target.value.toUpperCase()
+                    setForm({ ...form, immatriculation: value })
+                    setSelectedVehicule(null)
+                    setSearch(value)
                   }}
                   placeholder="Saisir l'immatriculation..."
                   className="w-full pl-10 pr-4 py-2 rounded-xl border border-input bg-background text-sm outline-none focus:ring-2 focus:ring-primary/50"
@@ -298,7 +317,10 @@ export default function ParkeurFlux() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value)
+                setHistoryPage(1)
+              }}
               placeholder="Chercher dans l'historique..."
               className="w-full pl-10 pr-4 py-2 rounded-xl border border-input bg-background text-sm outline-none focus:ring-2 focus:ring-primary/50"
             />
@@ -324,7 +346,7 @@ export default function ParkeurFlux() {
                     <div>
                       <div className="font-mono font-semibold">{m.immatriculation}</div>
                       <div className="text-sm text-muted-foreground">
-                        {m.type_mouvement === 'entree' ? '➕ Entrée' : '🚀 Sortie'} •{' '}
+                        {{ entree: '➕ Entrée', sortie: '🚀 Sortie', maintenance: '🔧 Maintenance', reprise: '✅ Reprise' }[m.type_mouvement]} •{' '}
                         {formatDate(m.date_mouvement)}
                       </div>
                     </div>
@@ -344,10 +366,41 @@ export default function ParkeurFlux() {
                   {m.commentaire && (
                     <p className="text-sm text-muted-foreground">{m.commentaire}</p>
                   )}
+                  {m.photos && m.photos.length > 0 && (
+                    <div className="grid grid-cols-4 gap-2">
+                      {m.photos.map((photo) => (
+                        <SecureParkingPhoto key={photo.id_photo} parkingId={parkingId} photoId={photo.id_photo} />
+                      ))}
+                    </div>
+                  )}
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-primary hover:underline">
+                    <Camera className="h-4 w-4" /> Ajouter une photo
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0]
+                        void handleMovementPhoto(m.id_log, file)
+                        event.target.value = ''
+                      }}
+                    />
+                  </label>
                 </div>
               ))
             )}
           </div>
+          {historyTotalPages > 1 && (
+            <div className="flex items-center justify-between gap-3">
+              <NdjButton variant="secondary" onClick={() => setHistoryPage((p) => Math.max(1, p - 1))} disabled={historyPage === 1}>
+                Précédent
+              </NdjButton>
+              <span className="text-sm text-muted-foreground">Page {historyPage} / {historyTotalPages}</span>
+              <NdjButton variant="secondary" onClick={() => setHistoryPage((p) => Math.min(historyTotalPages, p + 1))} disabled={historyPage === historyTotalPages}>
+                Suivant
+              </NdjButton>
+            </div>
+          )}
         </div>
       )}
     </div>

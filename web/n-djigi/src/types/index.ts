@@ -245,7 +245,7 @@ export interface DepotPayload {
 // ═══════════════════════════════════════════════════════════════
 
 export type EtatVehicule = 'bon' | 'a_verifier' | 'dommage'
-export type TypeMouvement = 'entree' | 'sortie'
+export type TypeMouvement = 'entree' | 'sortie' | 'reprise' | 'maintenance'
 
 export interface Parking {
   id_parking: string
@@ -283,6 +283,7 @@ export interface VehiculeParking {
   statut: 'disponible' | 'en_location' | 'maintenance'
   etat: EtatVehiculeParking
   date_entree?: string
+  present?: boolean
 }
 
 export interface MouvementParking {
@@ -296,6 +297,7 @@ export interface MouvementParking {
   etat_vehicule: EtatVehiculeParking
   date_mouvement: string
   commentaire?: string | null
+  photos?: MaintenancePhoto[]
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -316,11 +318,44 @@ export interface Ticket {
   priorite: TicketPriorite
   date_creation: string
   date_resolution?: string | null
+  note_resolution?: string | null
+  id_conversation?: string
+  utilisateur_email?: string
+  utilisateur_telephone?: string
+  trajet?: {
+    adresse_depart: string
+    adresse_arrivee: string
+    statut: string
+    tarif_final?: number | null
+  } | null
   // Si lié à un trajet ou une transaction
   id_trajet?: string | null
   id_paiement?: string | null
-  // true si le ticket est éligible à un remboursement
+  /** Champ historique conservé uniquement pour compatibilité des anciennes données. */
   eligible_remboursement?: boolean
+}
+
+export interface SupportStats {
+  total: number
+  ouverts: number
+  en_cours: number
+  resolus: number
+  fermes: number
+}
+
+export interface SupportTicketList extends PaginatedResponse<Ticket> {
+  stats: SupportStats
+}
+
+export interface ChatMessage {
+  id_message: string
+  id_conversation: string
+  id_expediteur: string
+  nom_expediteur: string
+  contenu: string
+  lu: boolean
+  date_envoi: string
+  date_lecture?: string | null
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -448,6 +483,7 @@ export interface ChartDataPoint {
 export interface TopChauffeur {
   rang: number
   nom: string
+  note?: number | null
   chiffre_affaires: number
 }
 
@@ -500,7 +536,6 @@ export interface CreateMaintenancePayload {
 
 export interface EntryFluxPayload {
   id_vehicule: string
-  id_utilisateur: string
   etat_vehicule: EtatVehiculeParking
   commentaire?: string
 }
@@ -545,6 +580,3 @@ export interface UpdateDemandeExtensionPayload {
   statut: 'accepte' | 'refuse'
   motif_rejet?: string
 }
-
-
-

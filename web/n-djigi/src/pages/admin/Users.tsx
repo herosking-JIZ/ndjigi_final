@@ -498,7 +498,7 @@ export default function Users() {
       {/* Modal profil */}
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setSelected(null)}>
-          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl animate-fade-in" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white text-slate-900 border border-border rounded-2xl p-6 w-full max-w-md shadow-2xl animate-fade-in" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-display font-bold text-lg">Profil utilisateur</h2>
               <button onClick={() => setSelected(null)} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>

@@ -4,6 +4,13 @@
 
 const { prisma } = require('../config/db');
 
+const TRANSITIONS = {
+  en_attente: 'confirmee',
+  confirmee: 'en_reparation',
+  en_reparation: 'terminee',
+  terminee: 'bon_etat'
+};
+
 const MaintenanceController = {
   // ── Créer une demande de maintenance ───────────────────────
   async creerDemande(req, res) {
@@ -22,6 +29,43 @@ const MaintenanceController = {
         return res.status(400).json({
           success: false,
           message: 'id_vehicule, type, description requis.'
+        });
+      }
+
+      const vehicule = await prisma.vehicule.findFirst({
+        where: { id_vehicule, id_parking: parkingId, supprime_le: null },
+        include: {
+          journal_parking: {
+            orderBy: { date_mouvement: 'desc' },
+            take: 1,
+            select: { type_mouvement: true, id_parking: true }
+          }
+        }
+      });
+      const dernierMouvement = vehicule?.journal_parking[0];
+      const present = dernierMouvement
+        && ['entree', 'reprise', 'maintenance'].includes(dernierMouvement.type_mouvement)
+        && dernierMouvement.id_parking === parkingId;
+
+      if (!vehicule || !present) {
+        return res.status(409).json({
+          success: false,
+          message: "Le véhicule doit être présent dans ce parking pour ouvrir une maintenance."
+        });
+      }
+
+      const demandeActive = await prisma.maintenance.findFirst({
+        where: {
+          id_vehicule,
+          id_parking: parkingId,
+          statut: { in: ['en_attente', 'confirmee', 'en_reparation'] }
+        },
+        select: { id_maintenance: true }
+      });
+      if (demandeActive) {
+        return res.status(409).json({
+          success: false,
+          message: 'Une demande active existe déjà pour ce véhicule.'
         });
       }
 
@@ -107,7 +151,7 @@ const MaintenanceController = {
           skip,
           take: parseInt(limit),
           include: {
-            vehicule: { select: { immatriculation: true, marque: true } },
+            vehicule: { select: { immatriculation: true, marque: true, modele: true } },
             gestionnaire: { select: { nom: true, prenom: true } }
           }
         }),
@@ -118,6 +162,7 @@ const MaintenanceController = {
         id_maintenance: d.id_maintenance,
         immatriculation: d.vehicule.immatriculation,
         marque: d.vehicule.marque,
+        modele: d.vehicule.modele,
         type: d.type,
         statut: d.statut,
         urgence: d.urgence,
@@ -209,11 +254,24 @@ const MaintenanceController = {
         return res.status(404).json({ success: false, message: 'Maintenance introuvable.' });
       }
 
+      const prochainStatut = TRANSITIONS[demande.statut];
+      if (!prochainStatut || statut !== prochainStatut) {
+        return res.status(409).json({
+          success: false,
+          message: prochainStatut
+            ? `Transition invalide. Le prochain statut autorisé est « ${prochainStatut} ».`
+            : 'Cette maintenance est déjà clôturée.'
+        });
+      }
+
       const result = await prisma.$transaction(async (tx) => {
         // Mettre à jour le statut
         const updated = await tx.maintenance.update({
           where: { id_maintenance: maintenanceId },
-          data: { statut }
+          data: {
+            statut,
+            date_resolution: ['terminee', 'bon_etat'].includes(statut) ? new Date() : null
+          }
         });
 
         // Créer l'étape de l'historique
@@ -225,6 +283,42 @@ const MaintenanceController = {
             commentaire: commentaire || null
           }
         });
+
+        if (statut === 'en_reparation') {
+          await tx.vehicule.update({
+            where: { id_vehicule: demande.id_vehicule },
+            data: { statut: 'maintenance' }
+          });
+          await tx.journal_parking.create({
+            data: {
+              id_vehicule: demande.id_vehicule,
+              id_parking: parkingId,
+              id_utilisateur: req.user.id_utilisateur,
+              type_mouvement: 'maintenance',
+              etat_vehicule: 'en_maintenance',
+              besoin_maintenance: true,
+              commentaire: commentaire || `Maintenance ${maintenanceId} démarrée`
+            }
+          });
+        }
+
+        if (statut === 'bon_etat') {
+          await tx.vehicule.update({
+            where: { id_vehicule: demande.id_vehicule },
+            data: { statut: 'disponible' }
+          });
+          await tx.journal_parking.create({
+            data: {
+              id_vehicule: demande.id_vehicule,
+              id_parking: parkingId,
+              id_utilisateur: req.user.id_utilisateur,
+              type_mouvement: 'reprise',
+              etat_vehicule: 'bon_etat',
+              besoin_maintenance: false,
+              commentaire: commentaire || `Maintenance ${maintenanceId} clôturée`
+            }
+          });
+        }
 
         return updated;
       });

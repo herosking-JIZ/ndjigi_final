@@ -793,6 +793,7 @@ model ticket {
   sujet                  sujet_ticket
   description            String
   statut                 ticket_statut   @default(ouvert)
+  priorite               ticket_priorite @default(normale)
   eligible_remboursement Boolean         @default(false)
   id_location            String?         @db.Uuid
   /// Ticket lié à un trajet spécifique
@@ -802,6 +803,7 @@ model ticket {
   /// Agent support assigné au ticket
   date_creation          DateTime        @default(now()) @db.Timestamp(6)
   date_resolution        DateTime?       @db.Timestamp(6)
+  note_resolution        String?         @db.Text
   conversation           conversation?
   location               location?       @relation(fields: [id_location], references: [id_location], onDelete: NoAction, onUpdate: NoAction)
   utilisateur            utilisateur     @relation(fields: [id_utilisateur], references: [id_utilisateur], onDelete: NoAction, onUpdate: NoAction)

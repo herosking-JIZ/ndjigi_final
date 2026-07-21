@@ -2,6 +2,7 @@ const Joi = require('joi')
 
 const SUJETS  = ['probleme_technique', 'question_sur_une_course', 'reclamation', 'autre']
 const STATUTS = ['ouvert', 'en_cours', 'resolu', 'ferme']
+const PRIORITES = ['faible', 'normale', 'haute', 'urgente']
 
 const createTicketSchema = Joi.object({
   sujet: Joi.string().valid(...SUJETS).required()
@@ -11,6 +12,7 @@ const createTicketSchema = Joi.object({
   id_trajet:   Joi.string().uuid().optional().allow(null),
   id_paiement: Joi.string().uuid().optional().allow(null),
   id_location: Joi.string().uuid().optional().allow(null),
+  priorite: Joi.string().valid(...PRIORITES).default('normale'),
 })
   .oxor('id_trajet', 'id_paiement', 'id_location')
 
@@ -24,20 +26,13 @@ const listTicketsSchema = Joi.object({
 const updateStatutSchema = Joi.object({
   statut: Joi.string().valid(...STATUTS).required()
     .messages({ 'any.only': `Statut invalide. Valeurs acceptées : ${STATUTS.join(', ')}` }),
+  note_resolution: Joi.string().max(2000).allow('', null).optional(),
 })
 
-const remboursementSchema = Joi.object({
-  id_utilisateur: Joi.string().uuid().required(),
-  montant:        Joi.number().positive().required()
-    .messages({ 'number.positive': 'Le montant doit être supérieur à 0' }),
-  motif:          Joi.string().min(3).required(),
-  id_ticket:      Joi.string().uuid().required(),
-})
-const eligibiliteSchema = Joi.object({
-  eligible: Joi.boolean().required()
-    .messages({ 'any.required': 'Le champ "eligible" (true/false) est requis' }),
+const updatePrioriteSchema = Joi.object({
+  priorite: Joi.string().valid(...PRIORITES).required(),
 })
 
 module.exports = {
-  listTicketsSchema, updateStatutSchema, createTicketSchema, remboursementSchema, eligibiliteSchema,
+  listTicketsSchema, updateStatutSchema, updatePrioriteSchema, createTicketSchema,
 }

@@ -10,6 +10,7 @@ import type {
   ZoneTarifaire, CategorieVehicule, CodePromo,  TarifCategorieZone,
   AdminKpis, ChartDataPoint, TopChauffeur,
   Ticket,
+  SupportTicketList, ChatMessage, TicketPriorite,
   // Gestionnaire (Phase 1+)
   CreateGestionnairePayload, GestionnaireCreationResponse, InvitationVerifyResponse, FirstConnectionCompleteResponse, InvitationResendResponse, DocumentUploadResponse, FirstConnectionPayload,
   // Demandes d'extension
@@ -392,9 +393,13 @@ export const financesService = {
 // SUPPORT / TICKETS
 // ═══════════════════════════════════════════════════════════════
 export const supportService = {
-  list: async (params?: { page?: number; limit?: number; search?: string; statut?: string }): Promise<PaginatedResponse<Ticket>> => {
-    if (IS_DEMO) { await delay(); return mock.paginate(mock.MOCK_TICKETS, params?.page ?? 1, params?.limit ?? 20) }
-    const { data } = await api.get<ApiResponse<PaginatedResponse<Ticket>>>('/support/tickets', { params })
+  list: async (params?: { page?: number; limit?: number; search?: string; statut?: string }): Promise<SupportTicketList> => {
+    if (IS_DEMO) {
+      await delay()
+      const result = mock.paginate(mock.MOCK_TICKETS, params?.page ?? 1, params?.limit ?? 20)
+      return { ...result, stats: { total: result.total, ouverts: 0, en_cours: 0, resolus: 0, fermes: 0 } }
+    }
+    const { data } = await api.get<ApiResponse<SupportTicketList>>('/support/tickets', { params })
     return extractData(data)
   },
   getById: async (id: string): Promise<Ticket> => {
@@ -402,10 +407,18 @@ export const supportService = {
     const { data } = await api.get<ApiResponse<Ticket>>(`/support/tickets/${id}`)
     return extractData(data)
   },
-  updateStatut: async (id: string, statut: string): Promise<void> => {
+  updateStatut: async (id: string, statut: string, note_resolution?: string): Promise<void> => {
     if (IS_DEMO) { await delay(); return }
-    const { data } = await api.patch<ApiResponse<null>>(`/support/tickets/${id}/statut`, { statut })
+    const { data } = await api.patch<ApiResponse<null>>(`/support/tickets/${id}/statut`, { statut, note_resolution })
     extractData(data)
+  },
+  updatePriorite: async (id: string, priorite: TicketPriorite): Promise<void> => {
+    const { data } = await api.patch<ApiResponse<null>>(`/support/tickets/${id}/priorite`, { priorite })
+    extractData(data)
+  },
+  messages: async (idConversation: string): Promise<ChatMessage[]> => {
+    const { data } = await api.get<ApiResponse<{ messages: ChatMessage[] }>>(`/conversations/${idConversation}/messages`, { params: { page: 1, limit: 50 } })
+    return extractData(data).messages.reverse()
   },
 }
 
@@ -576,9 +589,9 @@ export const parkeurService = {
     return extractData(data)
   },
 
-  vehiculesGares: async (parkingId: string): Promise<VehiculeParking[]> => {
+  vehiculesGares: async (parkingId: string, params?: { presence?: 'present' | 'absent' | 'all'; search?: string }): Promise<VehiculeParking[]> => {
     if (IS_DEMO) { await delay(); return _vehicules }
-    const { data } = await api.get<ApiResponse<VehiculeParking[]>>(`/parkings/${parkingId}/vehicules`)
+    const { data } = await api.get<ApiResponse<VehiculeParking[]>>(`/parkings/${parkingId}/vehicules`, { params })
     return extractData(data)
   },
 
@@ -594,13 +607,13 @@ export const parkeurService = {
   },
 
   // ── Flux Entrée/Sortie ────────────────────────────────────────
-  enregistrerEntree: async (parkingId: string, payload: { id_vehicule?: string; id_utilisateur: string; etat_vehicule: string; commentaire?: string }): Promise<void> => {
+  enregistrerEntree: async (parkingId: string, payload: { id_vehicule: string; etat_vehicule: string; commentaire?: string }): Promise<void> => {
     if (IS_DEMO) { await delay(400); return }
     const { data } = await api.post<ApiResponse<null>>(`/parkings/${parkingId}/entree`, payload)
     extractData(data)
   },
 
-  enregistrerSortie: async (parkingId: string, payload: { id_vehicule?: string; id_utilisateur: string; etat_vehicule: string; commentaire?: string }): Promise<void> => {
+  enregistrerSortie: async (parkingId: string, payload: { id_vehicule: string; etat_vehicule: string; commentaire?: string }): Promise<void> => {
     if (IS_DEMO) { await delay(400); return }
     const { data } = await api.post<ApiResponse<null>>(`/parkings/${parkingId}/sortie`, payload)
     extractData(data)
@@ -613,7 +626,7 @@ export const parkeurService = {
     return extractData(data)
   },
 
-  creerMaintenance: async (parkingId: string, payload: { id_vehicule?: string; immatriculation?: string; type: string; urgence?: string; description: string }): Promise<void> => {
+  creerMaintenance: async (parkingId: string, payload: { id_vehicule: string; type: string; urgence?: string; description: string }): Promise<void> => {
     if (IS_DEMO) { await delay(400); return }
     const { data } = await api.post<ApiResponse<null>>(`/parkings/${parkingId}/maintenance`, payload)
     extractData(data)
@@ -632,33 +645,38 @@ export const parkeurService = {
   },
 
   // ── Photos ─────────────────────────────────────────────────────
-  uploadPhotoMouvement: async (mouvementId: string, file: File): Promise<{ id_photo: string; url: string }> => {
+  uploadPhotoMouvement: async (parkingId: string, mouvementId: string, file: File): Promise<{ id_photo: string; url: string }> => {
     if (IS_DEMO) { await delay(600); return { id_photo: `p-${Date.now()}`, url: '/mock-photo.jpg' } }
     const formData = new FormData()
     formData.append('photo', file)
     const { data } = await api.post<ApiResponse<{ id_photo: string; url: string }>>(
-      `/mouvements/${mouvementId}/photos`,
+      `/parkings/${parkingId}/mouvements/${mouvementId}/photos`,
       formData,
       { headers: { 'Content-Type': 'multipart/form-data' } }
     )
     return extractData(data)
   },
 
-  uploadPhotoMaintenance: async (maintenanceId: string, file: File): Promise<{ id_photo: string; url: string }> => {
+  uploadPhotoMaintenance: async (parkingId: string, maintenanceId: string, file: File): Promise<{ id_photo: string; url: string }> => {
     if (IS_DEMO) { await delay(600); return { id_photo: `p-${Date.now()}`, url: '/mock-photo.jpg' } }
     const formData = new FormData()
     formData.append('photo', file)
     const { data } = await api.post<ApiResponse<{ id_photo: string; url: string }>>(
-      `/maintenance/${maintenanceId}/photos`,
+      `/parkings/${parkingId}/maintenance/${maintenanceId}/photos`,
       formData,
       { headers: { 'Content-Type': 'multipart/form-data' } }
     )
     return extractData(data)
   },
 
-  deletePhoto: async (photoId: string): Promise<void> => {
+  getParkingPhoto: async (parkingId: string, photoId: string): Promise<Blob> => {
+    const { data } = await api.get(`/parkings/${parkingId}/photos/${photoId}`, { responseType: 'blob' })
+    return data
+  },
+
+  deletePhoto: async (parkingId: string, photoId: string): Promise<void> => {
     if (IS_DEMO) { await delay(300); return }
-    const { data } = await api.delete<ApiResponse<null>>(`/photos/${photoId}`)
+    const { data } = await api.delete<ApiResponse<null>>(`/parkings/${parkingId}/photos/${photoId}`)
     extractData(data)
   }
 }

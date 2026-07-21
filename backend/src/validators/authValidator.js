@@ -7,7 +7,7 @@ const validate = (req, res, next) => {
   if (!errors.isEmpty()) {
     return res.status(400).json({
       success: false,
-      message: 'DonnÃ©es invalides ðŸ˜’.',
+      message: 'Données invalides 😒.',
       errors:  errors.array().map(e => ({
         champ:   e.path,
         message: e.msg
@@ -22,35 +22,35 @@ const registerRules = [
   body('nom')
     .trim()
     .notEmpty().withMessage('Le nom est requis.')
-    .isLength({ max: 100 }).withMessage('Nom trop long (100 caractÃ¨res max).'),
+    .isLength({ max: 100 }).withMessage('Nom trop long (100 caractères max).'),
 
   body('prenom')
     .trim()
-    .notEmpty().withMessage('Le prÃ©nom est requis.')
-    .isLength({ max: 100 }).withMessage('PrÃ©nom trop long (100 caractÃ¨res max).'),
+    .notEmpty().withMessage('Le prénom est requis.')
+    .isLength({ max: 100 }).withMessage('Prénom trop long (100 caractères max).'),
 
   body('email')
     .trim()
     .notEmpty().withMessage("L'email est requis.")
     .isEmail().withMessage('Format email invalide.')
     .normalizeEmail()
-    .isLength({ max: 255 }).withMessage('Email trop long (255 caractÃ¨res max).'),
+    .isLength({ max: 255 }).withMessage('Email trop long (255 caractères max).'),
 
   body('numero_telephone')
     .trim()
-    .notEmpty().withMessage('Le numÃ©ro de tÃ©lÃ©phone est requis.')
-    .matches(/^\+?[\d\s\-]{8,20}$/).withMessage('NumÃ©ro de tÃ©lÃ©phone invalide (8 Ã  20 chiffres).'),
+    .notEmpty().withMessage('Le numéro de téléphone est requis.')
+    .matches(/^\+?[\d\s\-]{8,20}$/).withMessage('Numéro de téléphone invalide (8 à 20 chiffres).'),
 
   body('mot_de_passe')
     .notEmpty().withMessage('Le mot de passe est requis.')
-    .isLength({ min: 8 }).withMessage('Le mot de passe doit contenir au moins 8 caractÃ¨res.')
+    .isLength({ min: 8 }).withMessage('Le mot de passe doit contenir au moins 8 caractères.')
     .matches(/[A-Z]/).withMessage('Le mot de passe doit contenir au moins une majuscule.')
     .matches(/[0-9]/).withMessage('Le mot de passe doit contenir au moins un chiffre.'),
 
   body('role')
     .optional()
     .isIn(getRolesValides().filter(r => r !== 'admin'))
-    .withMessage(`RÃ´le invalide. Valeurs acceptÃ©es : ${getRolesValides().filter(r => r !== 'admin').join(', ')}.`),
+    .withMessage(`Rôle invalide. Valeurs acceptées : ${getRolesValides().filter(r => r !== 'admin').join(', ')}.`),
 
   validate
 ];

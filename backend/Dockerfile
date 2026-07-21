@@ -24,14 +24,12 @@ WORKDIR /app
 # Installer dumb-init pour gérer les signaux Unix
 RUN apk add --no-cache dumb-init
 
-# Copier les dépendances et le code depuis le builder
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/ ./
-
 # Créer un utilisateur non-root
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001 && \
-    chown -R nodejs:nodejs /app
+    adduser -S nodejs -u 1001
+
+# Attribuer les fichiers pendant la copie évite un chown récursif très lent.
+COPY --chown=nodejs:nodejs --from=builder /app/ ./
 
 USER nodejs
 

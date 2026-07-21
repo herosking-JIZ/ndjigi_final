@@ -6,8 +6,8 @@ const joiValidate = require('../middlewares/validate.middleware')
 const {
   createTicketSchema,
   updateStatutSchema,
+  updatePrioriteSchema,
   listTicketsSchema,
-  eligibiliteSchema,        // ← nouveau (point 3)
 } = require('../validators/supportValidation')
 
 const router = express.Router()
@@ -24,6 +24,6 @@ router.get('/:id', supportController.getOne)
 
 // Mutations : ADMIN uniquement → protégées par can()
 router.patch('/:id/statut',      can('support:mise_a_jour_statut'), joiValidate({ body: updateStatutSchema }), supportController.updateStatut)
-router.patch('/:id/eligibilite', can('support:mise_a_jour_statut'), joiValidate({ body: eligibiliteSchema }),  supportController.marquerEligible)
+router.patch('/:id/priorite', can('support:mise_a_jour_statut'), joiValidate({ body: updatePrioriteSchema }), supportController.updatePriorite)
 
 module.exports = router

@@ -189,48 +189,10 @@ const ParkingController = {
 
   // ── Ajouter un mouvement (entrée / sortie véhicule) ─────────
   async ajouterMouvement(req, res) {
-    try {
-      const { id } = req.params;
-      const {
-        id_vehicule,
-        type_mouvement,
-        etat_vehicule,
-        besoin_maintenance
-      } = req.body;
-
-      const id_gestionnaire = req.user.id_utilisateur;
-
-      if (!id_vehicule || !type_mouvement) {
-        return res.status(400).json({ success: false, message: 'id_vehicule et type_mouvement requis.' });
-      }
-
-      const result = await prisma.$transaction(async (tx) => {
-        const log = await tx.journal_parking.create({
-          data: {
-            id_vehicule,
-            id_parking:       id,
-            id_gestionnaire,
-            type_mouvement,
-            etat_vehicule:    etat_vehicule    ?? null,
-            besoin_maintenance: besoin_maintenance ?? false,
-          }
-        });
-
-        // Mettre à jour la capacité occupée
-        const delta = type_mouvement === 'entree' ? 1 : -1;
-        await tx.parking.update({
-          where: { id_parking: id },
-          data: { capacite_occupee: { increment: delta } }
-        });
-
-        return log;
-      });
-
-      return res.status(201).json({ success: true, data: result });
-    } catch (error) {
-      console.error('[parking.ajouterMouvement]', error);
-      return res.status(500).json({ success: false, message: 'Erreur serveur.' });
-    }
+    return res.status(410).json({
+      success: false,
+      message: 'Endpoint remplacé. Utilisez /parkings/:parkingId/entree ou /parkings/:parkingId/sortie.'
+    });
   },
 };
 

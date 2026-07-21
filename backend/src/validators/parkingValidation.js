@@ -15,14 +15,12 @@ const parkingSchema = Joi.object({
 
 const entreeSchema = Joi.object({
   id_vehicule:    Joi.string().uuid().required(),
-  id_utilisateur: Joi.string().uuid().required(),
   etat_vehicule:  Joi.string().valid('bon_etat', 'besoin_maintenance', 'en_maintenance', 'retire').required(),
   commentaire:    Joi.string().max(500).allow('', null).optional(),
 })
 
 const sortieSchema = Joi.object({
   id_vehicule:    Joi.string().uuid().required(),
-  id_utilisateur: Joi.string().uuid().required(),
   etat_vehicule:  Joi.string().valid('bon_etat', 'besoin_maintenance', 'en_maintenance', 'retire').required(),
   commentaire:    Joi.string().max(500).allow('', null).optional(),
 })

@@ -1,13 +1,16 @@
-import { ChevronDown, Wrench, AlertTriangle } from 'lucide-react'
-import { useState } from 'react'
+import { ChevronDown, Wrench, AlertTriangle, Camera } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { MaintenanceRequest, MaintenanceStatut } from '@/types'
 import { StatusBadge } from './StatusBadge'
 import { TimelineStep } from './TimelineStep'
+import { parkeurService } from '@/services/api'
 
 interface MaintenanceTileProps {
   maintenance: MaintenanceRequest
+  parkingId: string
   onClick?: () => void
   onStatusChange?: (statut: MaintenanceStatut, commentaire?: string) => void
+  onPhotoUpload?: (file: File) => void
   isLoading?: boolean
 }
 
@@ -23,10 +26,19 @@ const urgenceColors: Record<string, string> = {
   'haute': 'bg-danger/10 text-danger'
 }
 
+const nextStatus: Partial<Record<MaintenanceStatut, { value: MaintenanceStatut; label: string }>> = {
+  en_attente: { value: 'confirmee', label: 'Confirmer la demande' },
+  confirmee: { value: 'en_reparation', label: 'Démarrer la réparation' },
+  en_reparation: { value: 'terminee', label: 'Marquer terminée' },
+  terminee: { value: 'bon_etat', label: 'Valider le bon état' },
+}
+
 export function MaintenanceTile({
   maintenance,
+  parkingId,
   onClick,
   onStatusChange,
+  onPhotoUpload,
   isLoading = false
 }: MaintenanceTileProps) {
   const [expanded, setExpanded] = useState(false)
@@ -112,25 +124,69 @@ export function MaintenanceTile({
               <p className="text-xs font-semibold text-muted-foreground mb-2">Photos ({maintenance.photos.length})</p>
               <div className="grid grid-cols-3 gap-2">
                 {maintenance.photos.map(photo => (
-                  <a
+                  <SecureParkingPhoto
                     key={photo.id_photo}
-                    href={`/api/v1/photos/${photo.id_photo}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="relative group aspect-square rounded-lg bg-muted overflow-hidden hover:opacity-80 transition-opacity"
-                  >
-                    <img
-                      src={`/api/v1/photos/${photo.id_photo}`}
-                      alt="maintenance photo"
-                      className="w-full h-full object-cover"
-                    />
-                  </a>
+                    parkingId={parkingId}
+                    photoId={photo.id_photo}
+                  />
                 ))}
               </div>
             </div>
           )}
+
+          {onPhotoUpload && (
+            <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-primary hover:underline">
+              <Camera className="h-4 w-4" /> Ajouter une photo
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (file) onPhotoUpload(file)
+                  event.target.value = ''
+                }}
+              />
+            </label>
+          )}
+
+          {nextStatus[maintenance.statut] && onStatusChange && (
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={() => onStatusChange(nextStatus[maintenance.statut]!.value)}
+              className="w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              {nextStatus[maintenance.statut]!.label}
+            </button>
+          )}
         </div>
       )}
     </div>
+  )
+}
+
+export function SecureParkingPhoto({ parkingId, photoId }: { parkingId: string; photoId: string }) {
+  const [url, setUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    let active = true
+    let objectUrl: string | null = null
+    parkeurService.getParkingPhoto(parkingId, photoId).then((blob) => {
+      if (!active) return
+      objectUrl = URL.createObjectURL(blob)
+      setUrl(objectUrl)
+    }).catch(() => setUrl(null))
+    return () => {
+      active = false
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [parkingId, photoId])
+
+  if (!url) return <div className="aspect-square rounded-lg bg-muted" />
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className="aspect-square rounded-lg bg-muted overflow-hidden hover:opacity-80">
+      <img src={url} alt="maintenance" className="w-full h-full object-cover" />
+    </a>
   )
 }

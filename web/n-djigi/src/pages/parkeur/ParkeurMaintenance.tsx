@@ -5,9 +5,10 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/useToast'
 import { NdjButton } from '@/components/NdjButton'
 import { MaintenanceTile } from '@/components/MaintenanceTile'
-import type { MaintenanceRequest, MaintenanceStatut, MaintenanceUrgence, TypeMaintenance } from '@/types'
+import type { MaintenanceRequest, MaintenanceStatut, MaintenanceUrgence, TypeMaintenance, VehiculeParking } from '@/types'
 
 interface CreateMaintenanceForm {
+  id_vehicule: string
   immatriculation: string
   type: TypeMaintenance
   urgence: MaintenanceUrgence
@@ -15,6 +16,7 @@ interface CreateMaintenanceForm {
 }
 
 const DEFAULT_FORM: CreateMaintenanceForm = {
+  id_vehicule: '',
   immatriculation: '',
   type: 'mecanique',
   urgence: 'normale',
@@ -32,6 +34,9 @@ export default function ParkeurMaintenance() {
   const [urgenceFilter, setUrgenceFilter] = useState<MaintenanceUrgence | 'tous'>('tous')
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [form, setForm] = useState<CreateMaintenanceForm>(DEFAULT_FORM)
+  const [vehicules, setVehicules] = useState<VehiculeParking[]>([])
+  const [detailLoadingId, setDetailLoadingId] = useState<string | null>(null)
+  const [statusLoadingId, setStatusLoadingId] = useState<string | null>(null)
 
   const parkingId = user?.parking_id
 
@@ -59,7 +64,7 @@ export default function ParkeurMaintenance() {
 
   const handleCreateMaintenance = async () => {
     if (!parkingId) return
-    if (!form.immatriculation || !form.description) {
+    if (!form.id_vehicule || !form.description) {
       toast({ title: 'Veuillez remplir tous les champs obligatoires', variant: 'destructive' })
       return
     }
@@ -67,7 +72,7 @@ export default function ParkeurMaintenance() {
     setSubmitting(true)
     try {
       await parkeurService.creerMaintenance(parkingId, {
-        immatriculation: form.immatriculation,
+        id_vehicule: form.id_vehicule,
         type: form.type,
         urgence: form.urgence,
         description: form.description,
@@ -80,6 +85,71 @@ export default function ParkeurMaintenance() {
       toast({ title: 'Erreur lors de la création', variant: 'destructive' })
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const openCreateModal = async () => {
+    setShowCreateModal(true)
+    if (!parkingId) return
+    try {
+      setVehicules(await parkeurService.vehiculesGares(parkingId, { presence: 'present' }))
+    } catch {
+      toast({ title: 'Impossible de charger les véhicules présents', variant: 'destructive' })
+    }
+  }
+
+  const loadMaintenanceDetail = async (maintenance: MaintenanceRequest) => {
+    if (!parkingId || maintenance.historique) return
+    setDetailLoadingId(maintenance.id_maintenance)
+    try {
+      const detail = await parkeurService.obtenirMaintenance(parkingId, maintenance.id_maintenance)
+      setRequests((items) => items.map((item) => item.id_maintenance === maintenance.id_maintenance
+        ? {
+            ...item,
+            ...detail,
+            immatriculation: detail.vehicule?.immatriculation || item.immatriculation,
+            marque: detail.vehicule?.marque || item.marque,
+            modele: detail.vehicule?.modele || item.modele,
+            gestionnaire_nom: detail.gestionnaire
+              ? `${detail.gestionnaire.prenom} ${detail.gestionnaire.nom}`
+              : item.gestionnaire_nom,
+          }
+        : item))
+    } catch {
+      toast({ title: 'Impossible de charger le détail', variant: 'destructive' })
+    } finally {
+      setDetailLoadingId(null)
+    }
+  }
+
+  const updateStatus = async (maintenance: MaintenanceRequest, statut: MaintenanceStatut) => {
+    if (!parkingId) return
+    setStatusLoadingId(maintenance.id_maintenance)
+    try {
+      await parkeurService.mettreAJourMaintenanceStatut(parkingId, maintenance.id_maintenance, { statut })
+      toast({ title: 'Statut mis à jour', variant: 'success' })
+      await loadMaintenance()
+    } catch {
+      toast({ title: 'Transition de statut impossible', variant: 'destructive' })
+    } finally {
+      setStatusLoadingId(null)
+    }
+  }
+
+  const uploadMaintenancePhoto = async (maintenance: MaintenanceRequest, file: File) => {
+    if (!parkingId) return
+    setDetailLoadingId(maintenance.id_maintenance)
+    try {
+      await parkeurService.uploadPhotoMaintenance(parkingId, maintenance.id_maintenance, file)
+      const detail = await parkeurService.obtenirMaintenance(parkingId, maintenance.id_maintenance)
+      setRequests((items) => items.map((item) => item.id_maintenance === maintenance.id_maintenance
+        ? { ...item, photos: detail.photos, historique: detail.historique }
+        : item))
+      toast({ title: 'Photo ajoutée', variant: 'success' })
+    } catch {
+      toast({ title: "Échec de l'ajout de la photo", variant: 'destructive' })
+    } finally {
+      setDetailLoadingId(null)
     }
   }
 
@@ -156,6 +226,11 @@ export default function ParkeurMaintenance() {
             <MaintenanceTile
               key={maintenance.id_maintenance}
               maintenance={maintenance}
+              parkingId={parkingId}
+              onClick={() => loadMaintenanceDetail(maintenance)}
+              onStatusChange={(statut) => updateStatus(maintenance, statut)}
+              onPhotoUpload={(file) => uploadMaintenancePhoto(maintenance, file)}
+              isLoading={detailLoadingId === maintenance.id_maintenance || statusLoadingId === maintenance.id_maintenance}
             />
           ))
         )}
@@ -164,7 +239,7 @@ export default function ParkeurMaintenance() {
       {/* FAB */}
       <div className="fixed bottom-6 right-6 md:bottom-8 md:right-8">
         <button
-          onClick={() => setShowCreateModal(true)}
+          onClick={openCreateModal}
           className="w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg hover:shadow-xl hover:bg-primary/90 transition-all active:scale-95"
           title="Nouvelle demande"
         >
@@ -182,13 +257,25 @@ export default function ParkeurMaintenance() {
               {/* Immatriculation */}
               <div>
                 <label className="block text-sm font-medium mb-1">Immatriculation</label>
-                <input
-                  type="text"
-                  value={form.immatriculation}
-                  onChange={(e) => setForm({ ...form, immatriculation: e.target.value.toUpperCase() })}
-                  placeholder="AA-123-BF"
+                <select
+                  value={form.id_vehicule}
+                  onChange={(e) => {
+                    const vehicule = vehicules.find((v) => v.id_vehicule === e.target.value)
+                    setForm({
+                      ...form,
+                      id_vehicule: vehicule?.id_vehicule || '',
+                      immatriculation: vehicule?.immatriculation || '',
+                    })
+                  }}
                   className="w-full rounded-xl border border-input bg-background px-3.5 py-2 text-sm font-mono outline-none focus:ring-2 focus:ring-primary/50"
-                />
+                >
+                  <option value="">Sélectionner un véhicule présent</option>
+                  {vehicules.map((vehicule) => (
+                    <option key={vehicule.id_vehicule} value={vehicule.id_vehicule}>
+                      {vehicule.immatriculation} — {vehicule.marque} {vehicule.modele}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Type */}

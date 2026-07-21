@@ -431,8 +431,9 @@ const documentController = {
         });
       }
 
-      // Verify ownership
-      if (document.id_utilisateur !== userId) {
+      // Verify ownership (admin can review any document)
+      const rolesUser = req.user.utilisateur_role.map(r => r.role);
+      if (document.id_utilisateur !== userId && !rolesUser.includes('admin')) {
         return res.status(403).json({
           success: false,
           message: 'Access denied.',
