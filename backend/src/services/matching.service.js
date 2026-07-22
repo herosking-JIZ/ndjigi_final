@@ -24,9 +24,11 @@
 const { prisma } = require('../config/db');
 const { getIO } = require('../socket/ioRegistry');
 
-const DELAI_PROPOSITION_MS = 60 * 1000; // 1 minute par candidat
-const DELAI_MAX_RECHERCHE_MS = 15 * 60 * 1000; // 15 minutes au total
-const MAX_CANDIDATS = 15;
+const DELAI_PROPOSITION_MS = Number(process.env.VTC_MATCHING_OFFER_SECONDS || 30) * 1000;
+const DELAI_MAX_RECHERCHE_MS = Number(process.env.VTC_MATCHING_MAX_MINUTES || 10) * 60 * 1000;
+const POSITION_MAX_AGE_MS = Number(process.env.VTC_POSITION_MAX_AGE_SECONDS || 120) * 1000;
+const RAYON_MAX_KM = Number(process.env.VTC_MATCHING_RADIUS_KM || 25);
+const MAX_CANDIDATS = Number(process.env.VTC_MATCHING_MAX_CANDIDATES || 15);
 
 function toRad(deg) {
   return (deg * Math.PI) / 180;
@@ -49,15 +51,22 @@ function distanceHaversineKm(lat1, lon1, lat2, lon2) {
  * plus proche au plus loin du point de départ, plafonné à MAX_CANDIDATS.
  */
 async function trouverCandidats({ id_categorie, latitude, longitude }) {
+  const positionValideDepuis = new Date(Date.now() - POSITION_MAX_AGE_MS);
   const affectations = await prisma.affectation_vehicule.findMany({
     where: {
       est_active: true,
       chauffeur: { statut_disponibilite: 'en_ligne' },
+      trajet: {
+        none: { statut: { in: ['en_attente', 'chauffeur_trouve', 'confirme', 'en_cours'] } },
+      },
       vehicule_course: {
         vehicule: {
           id_categorie,
+          statut: 'disponible',
+          gps_actif: true,
           latitude_actuelle: { not: null },
           longitude_actuelle: { not: null },
+          tracking_vehicule: { some: { horodatage: { gte: positionValideDepuis } } },
         },
       },
     },
@@ -82,7 +91,7 @@ async function trouverCandidats({ id_categorie, latitude, longitude }) {
   });
 
   candidats.sort((a, b) => a.distance_km - b.distance_km);
-  return candidats.slice(0, MAX_CANDIDATS);
+  return candidats.filter((candidat) => candidat.distance_km <= RAYON_MAX_KM).slice(0, MAX_CANDIDATS);
 }
 
 async function proposerAuCandidat(trajet, idChauffeur) {
@@ -128,7 +137,9 @@ async function avancerCandidatSuivant(idTrajet) {
   const trajet = await prisma.trajet.findUnique({ where: { id_trajet: idTrajet } });
   if (!trajet || trajet.statut !== 'en_attente') return;
 
-  const dureeEcouleeMs = Date.now() - new Date(trajet.matching_demarre_a).getTime();
+  const dureeEcouleeMs = trajet.matching_demarre_a
+    ? Date.now() - new Date(trajet.matching_demarre_a).getTime()
+    : DELAI_MAX_RECHERCHE_MS;
   const candidatsRestants = Array.isArray(trajet.matching_candidats)
     ? trajet.matching_candidats
     : [];
@@ -138,29 +149,61 @@ async function avancerCandidatSuivant(idTrajet) {
     return;
   }
 
-  const [suivant, ...reste] = candidatsRestants;
-  const trajetMisAJour = await prisma.trajet.update({
-    where: { id_trajet: idTrajet },
+  let suivant = null;
+  let reste = candidatsRestants;
+  while (reste.length > 0 && !suivant) {
+    const [candidat, ...apres] = reste;
+    reste = apres;
+    const encoreDisponible = await prisma.affectation_vehicule.findFirst({
+      where: {
+        id_affectation: candidat.id_affectation,
+        est_active: true,
+        chauffeur: { statut_disponibilite: 'en_ligne' },
+        trajet: {
+          none: {
+            id_trajet: { not: idTrajet },
+            statut: { in: ['en_attente', 'chauffeur_trouve', 'confirme', 'en_cours'] },
+          },
+        },
+      },
+      select: { id_affectation: true },
+    });
+    if (encoreDisponible) suivant = candidat;
+  }
+  if (!suivant) {
+    await echecMatching(idTrajet);
+    return;
+  }
+  const resultat = await prisma.trajet.updateMany({
+    where: {
+      id_trajet: idTrajet,
+      id_affectation: trajet.id_affectation,
+      statut: 'en_attente',
+    },
     data: {
       id_affectation: suivant.id_affectation,
       matching_candidats: reste,
       matching_expire_a: new Date(Date.now() + DELAI_PROPOSITION_MS),
     },
   });
+  if (resultat.count === 0) return;
+
+  const trajetMisAJour = await prisma.trajet.findUnique({ where: { id_trajet: idTrajet } });
 
   await proposerAuCandidat(trajetMisAJour, suivant.id_chauffeur);
 }
 
 /** Aucun chauffeur trouvé/n'a accepté : annule le trajet et notifie le passager */
 async function echecMatching(idTrajet) {
-  await prisma.trajet.update({
-    where: { id_trajet: idTrajet },
+  const resultat = await prisma.trajet.updateMany({
+    where: { id_trajet: idTrajet, statut: 'en_attente' },
     data: {
       statut: 'annule',
       matching_candidats: null,
       matching_expire_a: null,
     },
   });
+  if (resultat.count === 0) return;
 
   const passagers = await prisma.detail_trajet_passager.findMany({
     where: { id_trajet: idTrajet },
@@ -195,4 +238,6 @@ module.exports = {
   DELAI_PROPOSITION_MS,
   DELAI_MAX_RECHERCHE_MS,
   MAX_CANDIDATS,
+  POSITION_MAX_AGE_MS,
+  RAYON_MAX_KM,
 };

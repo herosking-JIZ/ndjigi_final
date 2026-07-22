@@ -28,6 +28,10 @@ _$CourseImpl _$$CourseImplFromJson(Map<String, dynamic> json) => _$CourseImpl(
   confirmationChauffeur: json['confirmation_chauffeur'] as bool? ?? false,
   confirmationPassager: json['confirmation_passager'] as bool? ?? false,
   identiteConfirmee: json['identite_confirmee'] as bool? ?? false,
+  chauffeurArriveA: json['chauffeur_arrive_a'] == null
+      ? null
+      : DateTime.parse(json['chauffeur_arrive_a'] as String),
+  idConversation: json['id_conversation'] as String?,
   motifAnnulation: json['motif_annulation'] as String?,
   chauffeurNom: json['chauffeur_nom'] as String?,
   chauffeurPhoto: json['chauffeur_photo'] as String?,
@@ -58,6 +62,8 @@ Map<String, dynamic> _$$CourseImplToJson(_$CourseImpl instance) =>
       'confirmation_chauffeur': instance.confirmationChauffeur,
       'confirmation_passager': instance.confirmationPassager,
       'identite_confirmee': instance.identiteConfirmee,
+      'chauffeur_arrive_a': instance.chauffeurArriveA?.toIso8601String(),
+      'id_conversation': instance.idConversation,
       'motif_annulation': instance.motifAnnulation,
       'chauffeur_nom': instance.chauffeurNom,
       'chauffeur_photo': instance.chauffeurPhoto,

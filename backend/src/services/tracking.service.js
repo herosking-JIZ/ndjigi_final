@@ -4,6 +4,7 @@
  */
 
 const { prisma } = require('../config/db');
+const { getIO } = require('../socket/ioRegistry');
 
 const HISTORY_SAMPLE_MS = 20 * 1000; // Historique : 1 insert max toutes les 20 sec par véhicule
 
@@ -52,6 +53,27 @@ async function enregistrerPosition(id_vehicule, { latitude, longitude, vitesse, 
       });
     }
   });
+
+  const courseActive = await prisma.trajet.findFirst({
+    where: {
+      affectation_vehicule: { id_vehicule },
+      statut: { in: ['chauffeur_trouve', 'confirme', 'en_cours'] },
+    },
+    select: { id_trajet: true },
+    orderBy: { date_heure_debut: 'desc' },
+  });
+  if (courseActive) {
+    try {
+      getIO().of('/course').to(`trajet:${courseActive.id_trajet}`).emit('course:position_chauffeur', {
+        id_trajet: courseActive.id_trajet,
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+        vitesse: vitesse == null ? null : Number(vitesse),
+        cap: cap == null ? null : Number(cap),
+        horodatage: new Date().toISOString(),
+      });
+    } catch (_) { /* Socket non initialisé pendant certains tests. */ }
+  }
 
   return { archive: doitArchiver };
 }

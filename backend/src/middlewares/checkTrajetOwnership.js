@@ -20,7 +20,7 @@ const checkTrajetChauffeur = async (req, res, next) => {
     }
 
     // Vérifier que le chauffeur connecté est bien celui affecté à ce trajet
-    const estLeChauffeur = trajet.affectation_vehicule.id_chauffeur === req.user.id_utilisateur;
+    const estLeChauffeur = trajet.affectation_vehicule?.id_chauffeur === req.user.id_utilisateur;
 
     if (!estLeChauffeur) {
         return res.status(403).json({ message: 'Ce trajet ne vous est pas affecté.' });

@@ -96,6 +96,16 @@ app.use((req, res, next) => {
 
 // --- DEBUGGER DE PAYLOAD (TOUTES LES REQUÊTES) ---
 // A supprimer
+function redactSensitive(value) {
+    if (Array.isArray(value)) return value.map(redactSensitive);
+    if (!value || typeof value !== 'object') return value;
+    const sensible = /password|mot_de_passe|token|secret|authorization|pin/i;
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [
+        key,
+        sensible.test(key) ? '****' : redactSensitive(item)
+    ]));
+}
+
 app.use((req, res, next) => {
     // Si tu veux exclure certaines routes pour éviter de polluer (ex: /health), tu peux ajouter un filtre ici
     if (req.originalUrl.includes('/health')) return next();
@@ -105,7 +115,7 @@ app.use((req, res, next) => {
     
     if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
         if (req.body && Object.keys(req.body).length > 0) {
-            console.log('\x1b[33m[BODY]:\x1b[0m', JSON.stringify(req.body, null, 2));
+            console.log('\x1b[33m[BODY]:\x1b[0m', JSON.stringify(redactSensitive(req.body), null, 2));
         } else if (req.body) {
             console.log('\x1b[33m[BODY]:\x1b[0m {} (vide)');
         }
@@ -123,7 +133,7 @@ app.use((req, res, next) => {
         console.log(`\x1b[35m[DEBUG-RES] Réponse pour ${req.method} ${req.originalUrl} :\x1b[0m`);
         
         // Petite sécurité pour éviter un terminal qui plante si on GET 10 000 lignes
-        const bodyString = JSON.stringify(body, null, 2);
+        const bodyString = JSON.stringify(redactSensitive(body), null, 2);
         if (bodyString && bodyString.length > 2000) {
             console.log('\x1b[32m[PAYLOAD]:\x1b[0m', bodyString.substring(0, 2000) + '\n... [TRONQUÉ CAR TROP LONG]');
         } else {

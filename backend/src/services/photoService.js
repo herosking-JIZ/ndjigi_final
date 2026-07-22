@@ -105,8 +105,11 @@ async function uploadPhoto(params) {
       throw new Error(`File type not allowed: ${detectedType} (images only)`);
     }
 
-    // Step 5: Verify detected MIME matches client-declared MIME (spoof check)
-    if (file.mimetype !== detectedType) {
+    // Step 5: Le type détecté par signature binaire fait foi. Certains
+    // sélecteurs mobiles recompressent une image (PNG -> JPEG) tout en
+    // conservant le nom ou le MIME original. Cette différence est sûre tant
+    // que les deux types sont des images explicitement autorisées.
+    if (!areCompatibleImageMimeTypes(file.mimetype, detectedType)) {
       fs.unlinkSync(tempPath);
       throw new Error(
         `MIME type mismatch. Client declared: ${file.mimetype}, detected: ${detectedType}`
@@ -392,6 +395,12 @@ function sanitizeCaption(caption) {
     .trim();
 }
 
+function areCompatibleImageMimeTypes(declaredType, detectedType) {
+  return Boolean(
+    ALLOWED_MIME_TYPES[declaredType] && ALLOWED_MIME_TYPES[detectedType]
+  );
+}
+
 module.exports = {
   uploadPhoto,
   updatePhotoMetadata,
@@ -400,4 +409,5 @@ module.exports = {
   getGallery,
   PHOTO_LIMITS,
   USER_PHOTO_QUOTA_BYTES,
+  areCompatibleImageMimeTypes,
 };

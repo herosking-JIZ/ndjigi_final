@@ -12,16 +12,59 @@ import '../../../vehicule/data/models/vehicule.dart';
 import '../../../vehicule/data/vehicule_repository.dart';
 import '../../../vehicule/presentation/providers/mes_vehicules_provider.dart';
 import '../../../vehicule/presentation/widgets/vehicle_list_tile.dart';
+import '../../../notifications/presentation/providers/notification_provider.dart';
 import '../providers/locations_provider.dart';
 import '../providers/proprietaire_home_provider.dart';
 
-class ProprietaireHomeScreen extends ConsumerWidget {
+class ProprietaireHomeScreen extends ConsumerStatefulWidget {
   final VoidCallback onGoToLocations;
 
   const ProprietaireHomeScreen({required this.onGoToLocations, super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProprietaireHomeScreen> createState() =>
+      _ProprietaireHomeScreenState();
+}
+
+class _ProprietaireHomeScreenState
+    extends ConsumerState<ProprietaireHomeScreen> {
+  Future<void>? _refreshFuture;
+
+  Future<void> _refresh() {
+    final ongoing = _refreshFuture;
+    if (ongoing != null) return ongoing;
+    final future = _performRefresh();
+    _refreshFuture = future;
+    future.whenComplete(() {
+      if (identical(_refreshFuture, future)) _refreshFuture = null;
+    });
+    return future;
+  }
+
+  Future<void> _performRefresh() async {
+    try {
+      await Future.wait([
+        ref.refresh(mesVehiculesProvider('location').future),
+        ref.refresh(locationsProvider('en_attente').future),
+        ref.refresh(locationsProvider('active').future),
+        ref.refresh(locationsProvider('historique').future),
+        ref.read(authProvider.notifier).refreshProfile(),
+        ref.read(notificationProvider.notifier).loadNotifications(),
+      ]);
+      final notificationError = ref.read(notificationProvider).errorMessage;
+      if (notificationError != null) throw StateError(notificationError);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Le rafraîchissement a échoué. Veuillez réessayer.'),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final vehiculesAsync = ref.watch(mesVehiculesProvider('location'));
     final user = ref.watch(authProvider).user;
 
@@ -34,7 +77,9 @@ class ProprietaireHomeScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(8),
           child: AvatarSwitcher(
             radius: 20,
-            initials: user?.prenom?.isNotEmpty == true ? user!.prenom![0].toUpperCase() : '?',
+            initials: user?.prenom?.isNotEmpty == true
+                ? user!.prenom![0].toUpperCase()
+                : '?',
           ),
         ),
         title: const Text('Propriétaire'),
@@ -47,14 +92,27 @@ class ProprietaireHomeScreen extends ConsumerWidget {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () async => ref.refresh(mesVehiculesProvider('location').future),
+        onRefresh: _refresh,
         child: vehiculesAsync.when(
-          loading: () => const LoadingView(),
-          error: (error, _) => ErrorView(
-            message: 'Impossible de charger votre flotte.',
-            onRetry: () => ref.invalidate(mesVehiculesProvider('location')),
+          loading: () => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: const [SizedBox(height: 400, child: LoadingView())],
+          ),
+          error: (error, _) => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [
+              SizedBox(
+                height: 400,
+                child: ErrorView(
+                  message: 'Impossible de charger votre flotte.',
+                  onRetry: () =>
+                      ref.invalidate(mesVehiculesProvider('location')),
+                ),
+              ),
+            ],
           ),
           data: (vehicules) => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(16),
             children: [
               _CarteRevenus(vehicules: vehicules),
@@ -65,7 +123,9 @@ class ProprietaireHomeScreen extends ConsumerWidget {
                   Text('Ma flotte', style: AppTextStyles.titleMedium),
                   Text(
                     '${vehicules.length} véhicule${vehicules.length > 1 ? 's' : ''}',
-                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -85,7 +145,9 @@ class ProprietaireHomeScreen extends ConsumerWidget {
                         photoUrl: vehicule.photoPrincipaleId != null
                             ? repository.urlPhoto(vehicule.photoPrincipaleId!)
                             : null,
-                        onTap: () => context.push('/home/proprietaire/vehicule/${vehicule.idVehicule}'),
+                        onTap: () => context.push(
+                          '/home/proprietaire/vehicule/${vehicule.idVehicule}',
+                        ),
                       );
                     },
                   ),
@@ -93,10 +155,11 @@ class ProprietaireHomeScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               PrimaryButton(
                 label: '+ Enregistrer un nouveau véhicule',
-                onPressed: () => context.push('/home/proprietaire/vehicule/nouveau'),
+                onPressed: () =>
+                    context.push('/home/proprietaire/vehicule/nouveau'),
               ),
               const SizedBox(height: 12),
-              _CarteSuiviLocations(onTap: onGoToLocations),
+              _CarteSuiviLocations(onTap: widget.onGoToLocations),
               const SizedBox(height: 16),
             ],
           ),
@@ -114,7 +177,10 @@ class _CarteRevenus extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final visible = ref.watch(revenusVisibleProvider);
-    final revenus = vehicules.fold<double>(0, (somme, v) => somme + (v.fondsGenere ?? 0));
+    final revenus = vehicules.fold<double>(
+      0,
+      (somme, v) => somme + (v.fondsGenere ?? 0),
+    );
 
     return Container(
       width: double.infinity,
@@ -134,9 +200,13 @@ class _CarteRevenus extends ConsumerWidget {
                 style: AppTextStyles.bodySmall.copyWith(color: Colors.white70),
               ),
               GestureDetector(
-                onTap: () => ref.read(revenusVisibleProvider.notifier).state = !visible,
+                onTap: () =>
+                    ref.read(revenusVisibleProvider.notifier).state = !visible,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white24,
                     borderRadius: BorderRadius.circular(12),
@@ -144,9 +214,18 @@ class _CarteRevenus extends ConsumerWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(visible ? Icons.visibility_off : Icons.visibility, size: 14, color: Colors.white),
+                      Icon(
+                        visible ? Icons.visibility_off : Icons.visibility,
+                        size: 14,
+                        color: Colors.white,
+                      ),
                       const SizedBox(width: 4),
-                      Text('Voir', style: AppTextStyles.labelSmall.copyWith(color: Colors.white)),
+                      Text(
+                        'Voir',
+                        style: AppTextStyles.labelSmall.copyWith(
+                          color: Colors.white,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -161,9 +240,15 @@ class _CarteRevenus extends ConsumerWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              _statistique('${ref.watch(locationsProvider('en_attente')).valueOrNull?.length ?? 0}', 'Demandes'),
+              _statistique(
+                '${ref.watch(locationsProvider('en_attente')).valueOrNull?.length ?? 0}',
+                'Demandes',
+              ),
               const SizedBox(width: 24),
-              _statistique('${ref.watch(locationsProvider('active')).valueOrNull?.length ?? 0}', 'Actives'),
+              _statistique(
+                '${ref.watch(locationsProvider('active')).valueOrNull?.length ?? 0}',
+                'Actives',
+              ),
               const SizedBox(width: 24),
               _statistique('${vehicules.length}', 'Flotte'),
             ],
@@ -177,8 +262,14 @@ class _CarteRevenus extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(valeur, style: AppTextStyles.titleLarge.copyWith(color: Colors.white)),
-        Text(label, style: AppTextStyles.bodySmall.copyWith(color: Colors.white70)),
+        Text(
+          valeur,
+          style: AppTextStyles.titleLarge.copyWith(color: Colors.white),
+        ),
+        Text(
+          label,
+          style: AppTextStyles.bodySmall.copyWith(color: Colors.white70),
+        ),
       ],
     );
   }
@@ -215,10 +306,17 @@ class _CarteSuiviLocations extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Suivi des Locations', style: AppTextStyles.bodyLarge.copyWith(fontWeight: FontWeight.w600)),
+                  Text(
+                    'Suivi des Locations',
+                    style: AppTextStyles.bodyLarge.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                   Text(
                     'Demandes, actives, historique',
-                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                    style: AppTextStyles.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),

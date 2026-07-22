@@ -18,7 +18,7 @@ const uuidSchema = Joi.string()
 // Utilisé pour coordonnees_depart et coordonnees_arrivee
 // ─────────────────────────────────────────────
 const coordonneesSchema = Joi.object({
-    lat: Joi.number()
+    latitude: Joi.number()
         .min(-90).max(90)
         .required()
         .messages({
@@ -26,7 +26,7 @@ const coordonneesSchema = Joi.object({
             'number.min':   'La latitude doit être comprise entre -90 et 90',
             'number.max':   'La latitude doit être comprise entre -90 et 90'
         }),
-    lng: Joi.number()
+    longitude: Joi.number()
         .min(-180).max(180)
         .required()
         .messages({
@@ -70,15 +70,17 @@ const trajetQuerySchema = Joi.object({
             'number.max':     'La limite ne peut pas dépasser 100'
         }),
 
+    search: Joi.string().trim().max(120).optional().allow(''),
+
     // --- Filtres métier ---
 
     // Filtre par statut du trajet
     statut: Joi.string()
         .lowercase().trim()
-        .valid('en_attente', 'en_cours', 'termine', 'annule')
+        .valid('en_attente', 'chauffeur_trouve', 'confirme', 'en_cours', 'termine', 'annule')
         .optional()
         .messages({
-            'any.only': 'Le statut doit être : en_attente, en_cours, termine ou annule'
+            'any.only': 'Statut de trajet invalide'
         }),
 
     // Filtre par type de trajet
@@ -221,10 +223,10 @@ const createTrajetSchema = Joi.object({
     // VarChar(20) avec default 'en_attente' en base
     statut: Joi.string()
         .lowercase().trim()
-        .valid('en_attente', 'en_cours', 'termine', 'annule')
+        .valid('en_attente', 'chauffeur_trouve', 'confirme', 'en_cours', 'termine', 'annule')
         .default('en_attente')
         .messages({
-            'any.only': 'Le statut doit être : en_attente, en_cours, termine ou annule'
+            'any.only': 'Statut de trajet invalide'
         }),
 
     // VarChar(20) obligatoire — pas de default en base
@@ -274,6 +276,49 @@ const updateTrajetSchema = createTrajetSchema
         'object.min': 'Au moins un champ doit être fourni pour la mise à jour'
     });
 
+const demandeVtcSchema = Joi.object({
+    adresse_depart: Joi.string().trim().min(2).max(255).required(),
+    adresse_arrivee: Joi.string().trim().min(2).max(255).required(),
+    coordonnees_depart: coordonneesSchema.required(),
+    coordonnees_arrivee: coordonneesSchema.required(),
+    id_categorie: uuidSchema,
+    id_zone: Joi.string().uuid({ version: ['uuidv4'] }).optional().allow(null),
+    distance_km: Joi.number().positive().precision(2).required(),
+    duree_estimee_min: Joi.number().integer().min(1).required(),
+});
+
+const tarifVtcSchema = Joi.object({
+    id_zone: Joi.string().uuid({ version: ['uuidv4'] }).optional().allow(null),
+    id_categorie: uuidSchema,
+    distance_km: Joi.number().positive().precision(2).required(),
+    duree_min: Joi.number().integer().min(1).required(),
+    coefficient: Joi.number().min(1).optional(),
+    coordonnees_depart: coordonneesSchema.optional(),
+});
+
+const annulationTrajetSchema = Joi.object({
+    motif: Joi.string().trim().min(3).max(500).required(),
+});
+
+const terminerTrajetSchema = Joi.object({
+    // Le tarif fourni par un client n'est jamais une source de vérité.
+    polyline_trajet: Joi.string().max(100000).optional().allow(null, ''),
+});
+
+const demarrerTrajetSchema = Joi.object({
+    pin: Joi.string().pattern(/^\d{4}$/).required().messages({
+        'string.pattern.base': 'Le PIN doit contenir exactement 4 chiffres',
+        'any.required': 'Le PIN de démarrage est obligatoire',
+    }),
+});
+
+const trajetActifQuerySchema = Joi.object({
+    role: Joi.string().valid('passager', 'chauffeur').required().messages({
+        'any.only': 'Le rôle doit être passager ou chauffeur',
+        'any.required': 'Le rôle actif est obligatoire',
+    }),
+});
+
 // ─────────────────────────────────────────────
 // EXPORTS
 // ─────────────────────────────────────────────
@@ -282,5 +327,11 @@ module.exports = {
     trajetParamsSchema,    // req.params  → :id
     trajetQuerySchema,     // req.query   → filtres + pagination
     createTrajetSchema,    // req.body    → POST
-    updateTrajetSchema     // req.body    → PATCH
+    updateTrajetSchema,    // req.body    → PATCH
+    demandeVtcSchema,
+    tarifVtcSchema,
+    annulationTrajetSchema,
+    terminerTrajetSchema,
+    demarrerTrajetSchema,
+    trajetActifQuerySchema,
 };

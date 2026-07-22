@@ -4,46 +4,25 @@
 // GET /locations/:id (locationController.js normalise les deux vers
 // la même forme).
 
-double? _parseDoubleNullable(dynamic value) {
-  if (value == null) return null;
-  if (value is double) return value;
-  if (value is int) return value.toDouble();
-  if (value is String) return double.tryParse(value);
-  return null;
-}
+import '../../../../core/utils/json_parsers.dart';
+import '../../../../shared/models/rental_vehicule_resume.dart';
 
-class VehiculeResume {
-  final String? marque;
-  final String? modele;
-  final int? annee;
-  final String? immatriculation;
-
-  const VehiculeResume({this.marque, this.modele, this.annee, this.immatriculation});
-
-  String get nomComplet => '${marque ?? ''} ${modele ?? ''}'.trim();
-
-  factory VehiculeResume.fromJson(Map<String, dynamic> json) {
-    return VehiculeResume(
-      marque: json['marque'] as String?,
-      modele: json['modele'] as String?,
-      annee: json['annee'] is num ? (json['annee'] as num).toInt() : null,
-      immatriculation: json['immatriculation'] as String?,
-    );
-  }
-}
+export '../../../../shared/models/rental_vehicule_resume.dart' show VehiculeResume;
 
 class PassagerResume {
+  final String? idUtilisateur;
   final String? nom;
   final String? prenom;
   final String? photoProfil;
   final String? numeroTelephone;
 
-  const PassagerResume({this.nom, this.prenom, this.photoProfil, this.numeroTelephone});
+  const PassagerResume({this.idUtilisateur, this.nom, this.prenom, this.photoProfil, this.numeroTelephone});
 
   String get nomComplet => '${prenom ?? ''} ${nom ?? ''}'.trim();
 
   factory PassagerResume.fromJson(Map<String, dynamic> json) {
     return PassagerResume(
+      idUtilisateur: json['id_utilisateur'] as String?,
       nom: json['nom'] as String?,
       prenom: json['prenom'] as String?,
       photoProfil: json['photo_profil'] as String?,
@@ -63,6 +42,7 @@ class LocationOwnerView {
   final VehiculeResume vehicule;
   final PassagerResume passager;
   final double? noteMoyenne;
+  final String? idConversation;
 
   const LocationOwnerView({
     required this.idLocation,
@@ -73,6 +53,7 @@ class LocationOwnerView {
     required this.vehicule,
     required this.passager,
     this.noteMoyenne,
+    this.idConversation,
   });
 
   int? get dureeJours {
@@ -88,14 +69,15 @@ class LocationOwnerView {
       statut: json['statut'] as String? ?? 'en_attente',
       dateDebut: json['date_debut'] != null ? DateTime.tryParse(json['date_debut'] as String) : null,
       dateFin: json['date_fin'] != null ? DateTime.tryParse(json['date_fin'] as String) : null,
-      montantTotal: _parseDoubleNullable(json['montant_total']),
+      montantTotal: parseDoubleNullable(json['montant_total']),
       vehicule: vehiculeJson is Map<String, dynamic>
           ? VehiculeResume.fromJson(vehiculeJson)
           : const VehiculeResume(),
       passager: passagerJson is Map<String, dynamic>
           ? PassagerResume.fromJson(passagerJson)
           : const PassagerResume(),
-      noteMoyenne: _parseDoubleNullable(json['note_moyenne']),
+      noteMoyenne: parseDoubleNullable(json['note_moyenne']),
+      idConversation: json['id_conversation'] as String?,
     );
   }
 }

@@ -20,7 +20,9 @@ final secureStorageProvider = Provider<SecureStorage>((ref) {
 });
 
 /// Provides SharedPreferences instance
-final sharedPreferencesProvider = FutureProvider<SharedPreferences>((ref) async {
+final sharedPreferencesProvider = FutureProvider<SharedPreferences>((
+  ref,
+) async {
   return await SharedPreferences.getInstance();
 });
 
@@ -34,6 +36,16 @@ final apiServiceProvider = Provider<ApiService>((ref) {
 
 /// Provides Socket.io service instance
 final socketServiceProvider = Provider<SocketService>((ref) {
+  return SocketService();
+});
+
+/// Connexions séparées : changer de namespace ne doit pas couper une course
+/// lorsqu'un utilisateur ouvre le chat.
+final courseSocketServiceProvider = Provider<SocketService>((ref) {
+  return SocketService();
+});
+
+final chatSocketServiceProvider = Provider<SocketService>((ref) {
   return SocketService();
 });
 

@@ -82,6 +82,9 @@ services:
       # Redis (Phase 0+)
       REDIS_URL: redis://redis:6379
       REDIS_SOCKET_URL: redis://redis:6379/1
+
+      # Fallback MVP tant que la zone n'est pas résolue depuis les coordonnées.
+      VTC_DEFAULT_ZONE_ID: df272587-7f5b-4696-82c7-b8625d5a48cf
     ports:
       - "8000:8000"
     depends_on:
@@ -96,7 +99,7 @@ services:
       - /app/node_modules
     networks:
       - ndjigi-network
-    command: npm run dev
+    command: sh -c "npx prisma migrate deploy && npm run dev"
     restart: unless-stopped
 
   # Web Frontend (React + Vite)

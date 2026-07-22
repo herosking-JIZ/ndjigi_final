@@ -136,6 +136,19 @@ const VehiculeController = {
         if (type === 'location' && !rolesUser.includes('proprietaire')) {
           return res.status(403).json({ success: false, message: 'Seuls les propriétaires peuvent enregistrer un véhicule de location.' });
         }
+        if (type === 'location') {
+          const proprietaireExistant = await prisma.proprietaire.findUnique({
+            where: { id_proprietaire: idUtilisateur },
+            select: { statut_validation: true },
+          });
+          if (!proprietaireExistant || proprietaireExistant.statut_validation !== 'valide') {
+            return res.status(403).json({
+              success: false,
+              message: 'Votre profil propriétaire doit être validé avant de pouvoir enregistrer un véhicule de location.',
+              errors: { code: 'PROPRIETAIRE_NON_VALIDE' },
+            });
+          }
+        }
       }
 
       const vehicule = await prisma.$transaction(async (tx) => {

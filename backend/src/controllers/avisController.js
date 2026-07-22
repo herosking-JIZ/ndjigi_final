@@ -46,7 +46,7 @@ const AvisController = {
   // ── Laisser un avis ─────────────────────────────────────────
   async creer(req, res) {
     try {
-      const { id_evalue, id_trajet, note, commentaire } = req.body;
+      const { id_evalue, id_trajet, id_location, note, commentaire } = req.body;
       const id_evaluateur = req.user.id_utilisateur;
 
       if (!id_evalue || !note) {
@@ -59,12 +59,69 @@ const AvisController = {
         return res.status(400).json({ success: false, message: 'Vous ne pouvez pas vous évaluer vous-même.' });
       }
 
+      if (id_trajet) {
+        const trajet = await prisma.trajet.findUnique({
+          where: { id_trajet },
+          include: {
+            affectation_vehicule: { select: { id_chauffeur: true } },
+            passagers_du_trajet: { select: { id_passager: true } },
+          },
+        });
+        if (!trajet) {
+          return res.status(404).json({ success: false, message: 'Trajet introuvable.', errors: { code: 'TRAJET_INTROUVABLE' } });
+        }
+        if (trajet.statut !== 'termine') {
+          return res.status(409).json({ success: false, message: 'Le trajet doit être terminé avant sa notation.', errors: { code: 'TRAJET_NON_TERMINE' } });
+        }
+        const idChauffeur = trajet.affectation_vehicule?.id_chauffeur;
+        const idsPassagers = trajet.passagers_du_trajet.map(({ id_passager }) => id_passager);
+        const evaluateurParticipe = id_evaluateur === idChauffeur || idsPassagers.includes(id_evaluateur);
+        const evalueEstContrepartie = id_evaluateur === idChauffeur
+          ? idsPassagers.includes(id_evalue)
+          : id_evalue === idChauffeur;
+        if (!evaluateurParticipe || !evalueEstContrepartie) {
+          return res.status(403).json({ success: false, message: 'Cet avis ne concerne pas les participants du trajet.', errors: { code: 'AVIS_FORBIDDEN' } });
+        }
+
+        const avisExistant = await prisma.avis.findFirst({ where: { id_evaluateur, id_trajet } });
+        if (avisExistant) {
+          return res.status(409).json({ success: false, message: 'Vous avez déjà noté cette course.', errors: { code: 'AVIS_DEJA_ENVOYE' } });
+        }
+      } else if (id_location) {
+        const location = await prisma.location.findUnique({
+          where: { id_location },
+          include: {
+            passager: { select: { id_passager: true } },
+            vehicule: { include: { vehicule: { select: { id_proprietaire: true } } } },
+          },
+        });
+        if (!location) {
+          return res.status(404).json({ success: false, message: 'Location introuvable.', errors: { code: 'LOCATION_INTROUVABLE' } });
+        }
+        if (location.statut !== 'terminee') {
+          return res.status(409).json({ success: false, message: 'La location doit être terminée avant sa notation.', errors: { code: 'LOCATION_NON_TERMINEE' } });
+        }
+        const idPassager = location.passager.id_passager;
+        const idProprietaire = location.vehicule.vehicule.id_proprietaire;
+        const evaluateurParticipe = id_evaluateur === idPassager || id_evaluateur === idProprietaire;
+        const evalueEstContrepartie = id_evaluateur === idPassager ? id_evalue === idProprietaire : id_evalue === idPassager;
+        if (!evaluateurParticipe || !evalueEstContrepartie) {
+          return res.status(403).json({ success: false, message: 'Cet avis ne concerne pas les participants de cette location.', errors: { code: 'AVIS_FORBIDDEN' } });
+        }
+
+        const avisExistant = await prisma.avis.findFirst({ where: { id_evaluateur, id_location } });
+        if (avisExistant) {
+          return res.status(409).json({ success: false, message: 'Vous avez déjà noté cette location.', errors: { code: 'AVIS_DEJA_ENVOYE' } });
+        }
+      }
+
       const avis = await prisma.$transaction(async (tx) => {
         const newAvis = await tx.avis.create({
           data: {
             id_evaluateur,
             id_evalue,
             id_trajet:   id_trajet   ?? null,
+            id_location: id_location ?? null,
             note:        parseInt(note),
             commentaire: commentaire ?? null,
           }
@@ -81,12 +138,30 @@ const AvisController = {
           data: { note_moyenne: moyenne._avg.note }
         });
 
+        // Les réponses VTC lisent les notes dans les profils spécialisés.
+        const moyenneValeur = moyenne._avg.note;
+        const chauffeur = await tx.chauffeur.findUnique({ where: { id_chauffeur: id_evalue }, select: { id_chauffeur: true } });
+        if (chauffeur) {
+          await tx.chauffeur.update({ where: { id_chauffeur: id_evalue }, data: { note_chauffeur: moyenneValeur } });
+        }
+        const passager = await tx.passager.findUnique({ where: { id_passager: id_evalue }, select: { id_passager: true } });
+        if (passager) {
+          await tx.passager.update({ where: { id_passager: id_evalue }, data: { note_passager: moyenneValeur } });
+        }
+        const proprietaire = await tx.proprietaire.findUnique({ where: { id_proprietaire: id_evalue }, select: { id_proprietaire: true } });
+        if (proprietaire) {
+          await tx.proprietaire.update({ where: { id_proprietaire: id_evalue }, data: { note_proprietaire: moyenneValeur } });
+        }
+
         return newAvis;
       });
 
       return res.status(201).json({ success: true, data: avis });
     } catch (error) {
       console.error('[avis.creer]', error);
+      if (error.code === 'P2002') {
+        return res.status(409).json({ success: false, message: 'Vous avez déjà envoyé un avis pour cet élément.', errors: { code: 'AVIS_DEJA_ENVOYE' } });
+      }
       return res.status(500).json({ success: false, message: 'Erreur serveur.' });
     }
   },

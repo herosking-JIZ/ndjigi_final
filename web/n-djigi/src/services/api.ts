@@ -9,6 +9,7 @@ import type {
   Parking, CreateParkingPayload, VehiculeParking, MouvementParking,
   ZoneTarifaire, CategorieVehicule, CodePromo,  TarifCategorieZone,
   AdminKpis, ChartDataPoint, TopChauffeur,
+  MoyenPaiementConfig, CreateMoyenPaiementPayload,
   Ticket,
   SupportTicketList, ChatMessage, TicketPriorite,
   // Gestionnaire (Phase 1+)
@@ -685,6 +686,22 @@ export const parkeurService = {
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════
 export const configService = {
+
+  // ── Moyens de paiement disponibles dans l'application ─────
+  listMoyensPaiement: async (): Promise<MoyenPaiementConfig[]> => {
+    const { data } = await api.get<ApiResponse<MoyenPaiementConfig[]>>('/config/moyens-paiement')
+    return extractData(data)
+  },
+
+  createMoyenPaiement: async (payload: CreateMoyenPaiementPayload): Promise<MoyenPaiementConfig> => {
+    const { data } = await api.post<ApiResponse<MoyenPaiementConfig>>('/config/moyens-paiement', payload)
+    return extractData(data)
+  },
+
+  deleteMoyenPaiement: async (id: string): Promise<void> => {
+    const { data } = await api.delete<ApiResponse<null>>(`/config/moyens-paiement/${id}`)
+    extractData(data)
+  },
 
   // ── Zones ──────────────────────────────────────────────────
  listZones: async (): Promise<ZoneTarifaire[]> => {

@@ -1,109 +1,62 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/text_styles.dart';
-import '../providers/chauffeur_historique_provider.dart';
+import '../../../../core/utils/formatters.dart';
+import '../../../course/data/models/course.dart';
 
 class HistoriqueCard extends StatelessWidget {
-  final HistoriqueMock item;
+  final Course item;
   final VoidCallback? onTap;
 
-  const HistoriqueCard({
-    required this.item,
-    this.onTap,
-    super.key,
-  });
+  const HistoriqueCard({required this.item, this.onTap, super.key});
 
   @override
   Widget build(BuildContext context) {
-    final iVtc = item.type == 'VTC';
-    final typeColor = iVtc ? AppColors.info : AppColors.accent;
-    final typeBgColor = iVtc
-        ? AppColors.info.withValues(alpha: 0.12)
-        : AppColors.accent.withValues(alpha: 0.12);
-
-    final isTermine = item.statut == 'Terminé';
+    final isVtc = item.typeTrajet == 'vtc';
+    final isTermine = item.statut == 'termine';
     final statutColor = isTermine ? AppColors.success : AppColors.error;
+    final date = item.dateHeureFin ?? item.dateHeureDebut;
 
     return InkWell(
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppColors.background,
           borderRadius: BorderRadius.circular(12),
         ),
-        padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            // Colonne gauche: date, heure, trajet
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Date et heure
-                  Row(
-                    children: [
-                      Text(
-                        item.date,
-                        style: AppTextStyles.labelMedium.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+                  if (date != null)
+                    Text(
+                      Formatters.formatDateTime(date),
+                      style: AppTextStyles.labelMedium.copyWith(
+                        color: AppColors.textSecondary,
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        item.heure,
-                        style: AppTextStyles.labelMedium.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  // Trajet
-                  Text(
-                    '${item.depart} → ${item.arrivee}',
-                    style: AppTextStyles.bodyMedium.copyWith(
-                      color: AppColors.textPrimary,
                     ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${item.adresseDepart} → ${item.adresseArrivee}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.bodyMedium,
                   ),
                   const SizedBox(height: 6),
-                  // Badges type et statut
-                  Row(
+                  Wrap(
+                    spacing: 8,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: typeBgColor,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          item.type,
-                          style: AppTextStyles.labelSmall.copyWith(
-                            color: typeColor,
-                          ),
-                        ),
+                      _Badge(
+                        texte: isVtc ? 'VTC' : 'Covoiturage',
+                        couleur: isVtc ? AppColors.info : AppColors.accent,
                       ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: statutColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          item.statut,
-                          style: AppTextStyles.labelSmall.copyWith(
-                            color: statutColor,
-                          ),
-                        ),
+                      _Badge(
+                        texte: isTermine ? 'Terminé' : 'Annulé',
+                        couleur: statutColor,
                       ),
                     ],
                   ),
@@ -111,24 +64,36 @@ class HistoriqueCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 12),
-            // Montant à droite
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  '+${item.montant} FCFA',
-                  style: AppTextStyles.titleSmall.copyWith(
-                    color: AppColors.success,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-              ],
+            Text(
+              item.tarifFinal == null
+                  ? '—'
+                  : '+${Formatters.formatCFA(item.tarifFinal!)}',
+              style: AppTextStyles.titleSmall.copyWith(
+                color: isTermine ? AppColors.success : AppColors.textSecondary,
+              ),
             ),
           ],
         ),
       ),
     );
   }
+}
+
+class _Badge extends StatelessWidget {
+  const _Badge({required this.texte, required this.couleur});
+  final String texte;
+  final Color couleur;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    decoration: BoxDecoration(
+      color: couleur.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(6),
+    ),
+    child: Text(
+      texte,
+      style: AppTextStyles.labelSmall.copyWith(color: couleur),
+    ),
+  );
 }

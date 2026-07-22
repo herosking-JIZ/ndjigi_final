@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Pencil, Trash2, Zap, ChevronRight, ChevronDown, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Plus, Pencil, Trash2, Zap, ChevronRight, ChevronDown, CheckCircle2, AlertCircle, CreditCard, Loader2 } from 'lucide-react'
 import { configService } from '@/services/api'
 import { useToast } from '@/hooks/useToast'
 import { formatDateShort } from '@/lib/utils'
-import type { ZoneTarifaire, CategorieVehicule, TarifCategorieZone, CodePromo } from '@/types'
+import type { ZoneTarifaire, CategorieVehicule, TarifCategorieZone, CodePromo, MoyenPaiementConfig, CreateMoyenPaiementPayload, TypeMoyenPaiement } from '@/types'
 
-type Tab = 'zones' | 'categories' | 'tarifs' | 'promos'
+type Tab = 'zones' | 'categories' | 'tarifs' | 'promos' | 'paiements'
 
 // ─── Zones tarifaires ──────────────────────────────────────────
 function ZonesTab() {
@@ -768,6 +768,108 @@ function PromosTab() {
   )
 }
 
+// ─── Moyens de paiement ────────────────────────────────────────
+const TYPE_PAIEMENT_LABEL: Record<TypeMoyenPaiement, string> = {
+  MOBILE_MONEY: 'Mobile Money',
+  CARTE_BANCAIRE: 'Carte bancaire',
+  PORTEFEUILLE: 'Portefeuille N’DJIGI',
+}
+
+function MoyensPaiementTab() {
+  const { toast } = useToast()
+  const [moyens, setMoyens] = useState<MoyenPaiementConfig[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [modal, setModal] = useState<CreateMoyenPaiementPayload | null>(null)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try { setMoyens(await configService.listMoyensPaiement()) }
+    catch (error: any) {
+      toast({ title: 'Chargement impossible', description: error?.response?.data?.message, variant: 'destructive' })
+    } finally { setLoading(false) }
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const creer = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!modal?.nom.trim()) return
+    setSaving(true)
+    try {
+      await configService.createMoyenPaiement({ ...modal, nom: modal.nom.trim() })
+      toast({ title: 'Moyen de paiement ajouté', variant: 'success' })
+      setModal(null)
+      load()
+    } catch (error: any) {
+      toast({ title: 'Création impossible', description: error?.response?.data?.message || 'Vérifiez les informations.', variant: 'destructive' })
+    } finally { setSaving(false) }
+  }
+
+  const supprimer = async (moyen: MoyenPaiementConfig) => {
+    if (!confirm(`Supprimer le moyen de paiement « ${moyen.nom} » ?`)) return
+    try {
+      await configService.deleteMoyenPaiement(moyen.id_moyen_paiement)
+      toast({ title: 'Moyen de paiement supprimé', variant: 'success' })
+      load()
+    } catch (error: any) {
+      toast({ title: 'Suppression impossible', description: error?.response?.data?.message || 'Une erreur est survenue.', variant: 'destructive' })
+    }
+  }
+
+  return <>
+    <div className="flex items-center justify-between gap-4 mb-4">
+      <p className="text-sm text-muted-foreground">Canaux proposés lors du règlement dans l’application.</p>
+      <button onClick={() => setModal({ type: 'MOBILE_MONEY', nom: '', fournisseur: '', instructions: '' })} className="shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
+        <Plus className="h-4 w-4" /> Ajouter
+      </button>
+    </div>
+
+    <div className="bg-card border border-border rounded-2xl overflow-hidden">
+      <div className="overflow-x-auto"><table className="w-full text-sm">
+        <thead><tr className="border-b border-border bg-muted/40">
+          {['Moyen', 'Type', 'Fournisseur', 'Paiements liés', 'Ajouté le', ''].map((titre) => <th key={titre} className="text-left px-4 py-3 font-semibold text-muted-foreground">{titre}</th>)}
+        </tr></thead>
+        <tbody>
+          {loading ? [...Array(3)].map((_, i) => <tr key={i} className="border-b border-border">{[...Array(6)].map((_, j) => <td key={j} className="px-4 py-3"><div className="h-4 bg-muted rounded animate-pulse" /></td>)}</tr>)
+          : moyens.length === 0 ? <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">Aucun moyen de paiement configuré</td></tr>
+          : moyens.map((moyen) => <tr key={moyen.id_moyen_paiement} className="border-b border-border last:border-0 hover:bg-muted/30">
+            <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="h-9 w-9 rounded-xl bg-primary/10 text-primary grid place-items-center"><CreditCard className="h-4 w-4" /></div><div><p className="font-semibold">{moyen.nom}</p>{moyen.instructions && <p className="text-xs text-muted-foreground max-w-[260px] truncate">{moyen.instructions}</p>}</div></div></td>
+            <td className="px-4 py-3"><span className="px-2 py-0.5 rounded-md text-xs border border-primary/20 bg-primary/10 text-primary">{TYPE_PAIEMENT_LABEL[moyen.type]}</span></td>
+            <td className="px-4 py-3 text-muted-foreground">{moyen.fournisseur || '—'}</td>
+            <td className="px-4 py-3 font-mono">{moyen.nombre_paiements}</td>
+            <td className="px-4 py-3 text-muted-foreground">{formatDateShort(moyen.date_ajout)}</td>
+            <td className="px-4 py-3 text-right"><button onClick={() => supprimer(moyen)} className="p-2 rounded-lg text-destructive hover:bg-destructive/10" title="Supprimer"><Trash2 className="h-4 w-4" /></button></td>
+          </tr>)}
+        </tbody>
+      </table></div>
+    </div>
+
+    {modal && <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setModal(null)}>
+      <form onSubmit={creer} className="bg-white dark:bg-zinc-900 border border-border rounded-2xl w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="p-6 border-b border-border"><h2 className="font-display font-bold text-lg">Ajouter un moyen de paiement</h2><p className="text-xs text-muted-foreground mt-1">Configurez le libellé présenté aux utilisateurs.</p></div>
+        <div className="p-6 space-y-4">
+          <label className="block text-sm font-medium">Type
+            <select value={modal.type} onChange={(e) => setModal({ ...modal, type: e.target.value as TypeMoyenPaiement })} className="mt-1.5 w-full rounded-xl border border-input bg-background px-4 py-2.5">
+              {Object.entries(TYPE_PAIEMENT_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </label>
+          <label className="block text-sm font-medium">Nom affiché <span className="text-destructive">*</span>
+            <input required minLength={2} maxLength={80} value={modal.nom} onChange={(e) => setModal({ ...modal, nom: e.target.value })} placeholder="Ex. Orange Money" className="mt-1.5 w-full rounded-xl border border-input bg-background px-4 py-2.5" />
+          </label>
+          <label className="block text-sm font-medium">Fournisseur
+            <input maxLength={80} value={modal.fournisseur || ''} onChange={(e) => setModal({ ...modal, fournisseur: e.target.value })} placeholder="Ex. Orange Burkina Faso" className="mt-1.5 w-full rounded-xl border border-input bg-background px-4 py-2.5" />
+          </label>
+          <label className="block text-sm font-medium">Instructions
+            <textarea maxLength={500} rows={3} value={modal.instructions || ''} onChange={(e) => setModal({ ...modal, instructions: e.target.value })} placeholder="Informations utiles affichées lors du paiement" className="mt-1.5 w-full rounded-xl border border-input bg-background px-4 py-2.5" />
+          </label>
+        </div>
+        <div className="p-6 border-t border-border flex justify-end gap-3"><button type="button" onClick={() => setModal(null)} className="px-4 py-2.5 rounded-xl border border-border">Annuler</button><button disabled={saving} className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground flex items-center gap-2 disabled:opacity-60">{saving && <Loader2 className="h-4 w-4 animate-spin" />}Créer</button></div>
+      </form>
+    </div>}
+  </>
+}
+
 // ─── Page principale ───────────────────────────────────────────
 export default function Config() {
   const [tab, setTab] = useState<Tab>('zones')
@@ -777,6 +879,7 @@ export default function Config() {
     { key: 'categories', label: 'Catégories' },
     { key: 'tarifs', label: 'Tarifs' },
     { key: 'promos', label: 'Codes promo' },
+    { key: 'paiements', label: 'Moyens de paiement' },
   ]
 
   return (
@@ -802,6 +905,7 @@ export default function Config() {
       {tab === 'categories' && <CategoriesTab />}
       {tab === 'tarifs' && <TarifsTab />}
       {tab === 'promos' && <PromosTab />}
+      {tab === 'paiements' && <MoyensPaiementTab />}
     </div>
   )
 }

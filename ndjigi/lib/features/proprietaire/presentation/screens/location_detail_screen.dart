@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/text_styles.dart';
 import '../../../../core/utils/formatters.dart';
@@ -25,7 +26,14 @@ class LocationDetailScreen extends ConsumerWidget {
 
     ref.listen(locationActionProvider(idLocation), (previous, next) {
       if (next.success && (previous == null || !previous.success)) {
-        Navigator.of(context).maybePop();
+        final resultat = next.acceptationResult;
+        if (resultat != null) {
+          // Acceptation : le paiement vient d'avoir lieu, on affiche le récap
+          // au lieu de revenir simplement en arrière.
+          context.push('/home/proprietaire/locations/$idLocation/paiement', extra: resultat);
+        } else {
+          Navigator.of(context).maybePop();
+        }
       }
     });
 
@@ -105,6 +113,13 @@ class LocationDetailScreen extends ConsumerWidget {
                   icon: Icons.error_outline,
                 ),
               ],
+              if (location.idConversation != null) ...[
+                const SizedBox(height: 24),
+                PrimaryButton(
+                  label: 'Discuter avec le locataire',
+                  onPressed: () => context.push('/chat/${location.idConversation}'),
+                ),
+              ],
               if (location.statut == 'en_attente') ...[
                 const SizedBox(height: 24),
                 PrimaryButton(
@@ -123,6 +138,24 @@ class LocationDetailScreen extends ConsumerWidget {
                     side: const BorderSide(color: AppColors.error),
                   ),
                   child: const Text('Refuser'),
+                ),
+              ],
+              if (location.statut == 'active') ...[
+                const SizedBox(height: 24),
+                PrimaryButton(
+                  label: 'Terminer la location',
+                  isLoading: actionState.isSubmitting,
+                  onPressed: () => ref.read(locationActionProvider(idLocation).notifier).terminer(),
+                ),
+              ],
+              if (location.statut == 'terminee' && location.passager.idUtilisateur != null) ...[
+                const SizedBox(height: 24),
+                PrimaryButton(
+                  label: 'Noter le locataire',
+                  onPressed: () => context.push(
+                    '/home/proprietaire/locations/$idLocation/noter',
+                    extra: location.passager.idUtilisateur,
+                  ),
                 ),
               ],
             ],

@@ -59,6 +59,13 @@ function registerCourseHandlers(socket) {
       socket.emit('course:error', { id_trajet: idTrajet, code: 'INTERNAL_ERROR' });
     }
   });
+
+  socket.on('course:leave', (payload) => {
+    const idTrajet = payload?.id_trajet;
+    if (idTrajet && typeof idTrajet === 'string') {
+      socket.leave(roomTrajet(idTrajet));
+    }
+  });
 }
 
 module.exports = { registerCourseHandlers, roomTrajet };

@@ -7,13 +7,11 @@ class ApiService {
   late final Dio _dio;
   final SecureStorage _storage;
   final AppConfig _config;
-  bool _isRefreshing = false;
+  Future<String?>? _refreshFuture;
 
-  ApiService({
-    required SecureStorage storage,
-    required AppConfig config,
-  })  : _storage = storage,
-        _config = config {
+  ApiService({required SecureStorage storage, required AppConfig config})
+    : _storage = storage,
+      _config = config {
     _initDio();
   }
 
@@ -38,9 +36,18 @@ class ApiService {
             // Masquer les tokens en clair
             var log = obj.toString();
             log = log.replaceAll(RegExp(r'Bearer [^,\s}]+'), 'Bearer ****');
-            log = log.replaceAll(RegExp(r'"access_token":"[^"]+'), '"access_token":"****');
-            log = log.replaceAll(RegExp(r'"refresh_token":"[^"]+'), '"refresh_token":"****');
-            log = log.replaceAll(RegExp(r'"id_token":"[^"]+'), '"id_token":"****');
+            log = log.replaceAll(
+              RegExp(r'"access_token":"[^"]+'),
+              '"access_token":"****',
+            );
+            log = log.replaceAll(
+              RegExp(r'"refresh_token":"[^"]+'),
+              '"refresh_token":"****',
+            );
+            log = log.replaceAll(
+              RegExp(r'"id_token":"[^"]+'),
+              '"id_token":"****',
+            );
             print(log);
           },
         ),
@@ -58,48 +65,38 @@ class ApiService {
           return handler.next(options);
         },
         onError: (error, handler) async {
-          if (error.response?.statusCode == 401) {
-            // Anti-réentrance: if refresh already in flight, reject immediately
-            if (_isRefreshing) {
-              await _storage.clearTokens();
-              AuthFailureManager.instance.notifyAuthFailed();
-              return handler.reject(error);
-            }
-
+          if (error.response?.statusCode == 401 &&
+              error.requestOptions.extra['skipRefresh'] != true) {
             final refreshToken = await _storage.getRefreshToken();
             if (refreshToken != null && refreshToken.isNotEmpty) {
-              _isRefreshing = true;
               try {
-                final response = await _refreshToken(refreshToken);
-                final newAccessToken = response.data['access_token'] as String?;
-                final newRefreshToken = response.data['refresh_token'] as String?;
+                // Toutes les requêtes ayant reçu 401 attendent le même refresh.
+                // Le token mobile doit être renouvelé avec le client public
+                // ndjigi-mobile, pas avec le client confidentiel du backend.
+                final newAccessToken = await (_refreshFuture ??=
+                    _refreshAndStoreToken(refreshToken));
 
                 if (newAccessToken != null) {
-                  await _storage.saveTokens(
-                    accessToken: newAccessToken,
-                    refreshToken: newRefreshToken ?? refreshToken,
-                  );
-
                   // Retry original request
                   final opts = error.requestOptions;
                   opts.headers['Authorization'] = 'Bearer $newAccessToken';
-                  return handler.resolve(await _dio.request(
-                    opts.path,
-                    options: Options(
-                      method: opts.method,
-                      headers: opts.headers,
+                  return handler.resolve(
+                    await _dio.request(
+                      opts.path,
+                      options: Options(
+                        method: opts.method,
+                        headers: opts.headers,
+                      ),
+                      data: opts.data,
+                      queryParameters: opts.queryParameters,
                     ),
-                    data: opts.data,
-                    queryParameters: opts.queryParameters,
-                  ));
+                  );
                 }
               } catch (_) {
                 // Refresh failed, logout and reject error (not next)
                 await _storage.clearTokens();
                 AuthFailureManager.instance.notifyAuthFailed();
                 return handler.reject(error);
-              } finally {
-                _isRefreshing = false;
               }
             } else {
               // No refresh token available, logout
@@ -113,14 +110,33 @@ class ApiService {
     );
   }
 
-  Future<Response> _refreshToken(String refreshToken) {
-    return _dio.post(
-      '/auth/refresh',
-      options: Options(
-        extra: {'skipRefresh': true},
-      ),
-      data: {'refresh_token': refreshToken},
-    );
+  Future<String?> _refreshAndStoreToken(String refreshToken) async {
+    try {
+      // Dio séparé pour ne pas appliquer l'intercepteur API (et son Bearer)
+      // à l'endpoint OAuth public de Keycloak.
+      final response = await Dio().post<Map<String, dynamic>>(
+        _config.keycloakTokenEndpoint,
+        data: {
+          'grant_type': 'refresh_token',
+          'client_id': _config.keycloakClientId,
+          'refresh_token': refreshToken,
+        },
+        options: Options(contentType: Headers.formUrlEncodedContentType),
+      );
+
+      final data = response.data;
+      final accessToken = data?['access_token'] as String?;
+      final newRefreshToken = data?['refresh_token'] as String?;
+      if (accessToken == null || accessToken.isEmpty) return null;
+
+      await _storage.saveTokens(
+        accessToken: accessToken,
+        refreshToken: newRefreshToken ?? refreshToken,
+      );
+      return accessToken;
+    } finally {
+      _refreshFuture = null;
+    }
   }
 
   Future<T> get<T>(

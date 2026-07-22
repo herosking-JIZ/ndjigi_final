@@ -4,7 +4,7 @@ import '../../../../core/theme/text_styles.dart';
 import '../providers/chauffeur_home_provider.dart';
 
 class MissionCard extends StatelessWidget {
-  final MissionMock mission;
+  final MissionVtc mission;
   final VoidCallback onAccepter;
   final VoidCallback onRefuser;
   final int secondesRestantes;
@@ -74,7 +74,10 @@ class MissionCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.info.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
@@ -88,7 +91,10 @@ class MissionCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),

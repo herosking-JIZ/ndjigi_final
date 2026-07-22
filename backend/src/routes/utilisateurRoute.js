@@ -5,6 +5,9 @@ const express                 = require('express');
 const UtilisateurController   = require('../controllers/utilisateurController');
 const { authenticate }        = require('../middlewares/authenticate');
 const { authorize, can }      = require('../middlewares/authorize');
+const PhotoController         = require('../controllers/photoController');
+const { uploadPhoto }         = require('../middlewares/photoUpload.middleware');
+const uploadRateLimiter       = require('../middlewares/uploadRateLimit');
 
 
 
@@ -23,6 +26,8 @@ utilisateurRoute.get   ('/profil',                    can('profil:lire'),       
 
 
 utilisateurRoute.patch ('/profil',                    can('profil:modifier'),   UtilisateurController.updateProfil);
+utilisateurRoute.post  ('/profil/photo',              can('profil:modifier'),   uploadRateLimiter, uploadPhoto.single('photo'), PhotoController.uploadProfilePhoto);
+utilisateurRoute.delete('/profil/photo',              can('profil:modifier'),   PhotoController.deleteProfilePhoto);
 // PATCH /utilisateur/mot-de-passe — changer son mot de passe
 
 

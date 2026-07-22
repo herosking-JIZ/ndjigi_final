@@ -9,27 +9,35 @@ import 'models/vehicule.dart';
 class VehiculeRepository {
   final ApiService _apiService;
 
-  VehiculeRepository({required ApiService apiService}) : _apiService = apiService;
+  VehiculeRepository({required ApiService apiService})
+    : _apiService = apiService;
 
   /// URL absolue pour afficher une photo servie par le backend
-  String urlPhoto(String idPhoto) => '${_apiService.dio.options.baseUrl}/photos/$idPhoto/file?inline=true';
+  String urlPhoto(String idPhoto) =>
+      '${_apiService.dio.options.baseUrl}/public/vehicle-photos/$idPhoto';
 
   /// GET /proprietaire/mes-vehicules — malgré son nom, cette route backend
   /// fonctionne pour tout créateur de véhicule (chauffeur inclus) : elle
   /// filtre par id_proprietaire = utilisateur connecté, qui est auto-
   /// provisionné pour tout véhicule de course également.
   Future<List<Vehicule>> getMesVehicules() async {
-    final response = await _apiService.get<Map<String, dynamic>>('/proprietaire/mes-vehicules');
+    final response = await _apiService.get<Map<String, dynamic>>(
+      '/proprietaire/mes-vehicules',
+    );
     final data = response['data'];
     if (data is List) {
-      return data.map((item) => Vehicule.fromJson(item as Map<String, dynamic>)).toList();
+      return data
+          .map((item) => Vehicule.fromJson(item as Map<String, dynamic>))
+          .toList();
     }
     return [];
   }
 
   /// GET /vehicules/:id
   Future<Vehicule> getVehicule(String idVehicule) async {
-    final response = await _apiService.get<Map<String, dynamic>>('/vehicules/$idVehicule');
+    final response = await _apiService.get<Map<String, dynamic>>(
+      '/vehicules/$idVehicule',
+    );
     return Vehicule.fromJson(response['data'] as Map<String, dynamic>);
   }
 
@@ -65,8 +73,10 @@ class VehiculeRepository {
         'climatisation': climatisation,
         'gps_actif': gpsActif,
         if (type == 'course') 'type_service': typeService,
-        if (type == 'location' && tarifBaseLocation != null) 'tarif_base_location': tarifBaseLocation,
-        if (type == 'location' && tarifParJourLocation != null) 'tarif_par_jour_location': tarifParJourLocation,
+        if (type == 'location' && tarifBaseLocation != null)
+          'tarif_base_location': tarifBaseLocation,
+        if (type == 'location' && tarifParJourLocation != null)
+          'tarif_par_jour_location': tarifParJourLocation,
       },
     );
     return Vehicule.fromJson(response['data'] as Map<String, dynamic>);
@@ -104,11 +114,15 @@ class VehiculeRepository {
 
   /// GET /photos/vehicule/:id — galerie photos d'un véhicule
   Future<List<PhotoVehicule>> getPhotosVehicule(String idVehicule) async {
-    final response = await _apiService.get<Map<String, dynamic>>('/photos/vehicule/$idVehicule');
+    final response = await _apiService.get<Map<String, dynamic>>(
+      '/photos/vehicule/$idVehicule',
+    );
     final data = response['data'];
     final photos = data is Map<String, dynamic> ? data['photos'] : null;
     if (photos is List) {
-      return photos.map((item) => PhotoVehicule.fromJson(item as Map<String, dynamic>)).toList();
+      return photos
+          .map((item) => PhotoVehicule.fromJson(item as Map<String, dynamic>))
+          .toList();
     }
     return [];
   }
@@ -158,7 +172,8 @@ class VehiculeRepository {
     final formData = FormData.fromMap({
       'type': type,
       'id_vehicule': idVehicule,
-      if (dateExpiration != null) 'date_expiration': dateExpiration.toIso8601String(),
+      if (dateExpiration != null)
+        'date_expiration': dateExpiration.toIso8601String(),
       'fichier': await MultipartFile.fromFile(filePath),
     });
 
@@ -183,7 +198,11 @@ class VehiculeRepository {
     );
     final data = response['data'];
     if (data is List) {
-      return data.map((item) => DocumentVehicule.fromJson(item as Map<String, dynamic>)).toList();
+      return data
+          .map(
+            (item) => DocumentVehicule.fromJson(item as Map<String, dynamic>),
+          )
+          .toList();
     }
     return [];
   }

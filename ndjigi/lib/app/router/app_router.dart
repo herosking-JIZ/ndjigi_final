@@ -12,12 +12,25 @@ import '../../features/auth/presentation/screens/compte_suspendu_screen.dart';
 import '../../features/auth/presentation/screens/keycloak_callback_screen.dart';
 import '../../features/auth/presentation/screens/phone_collection_screen.dart';
 import '../../features/home/presentation/screens/home_passager_screen.dart';
+import '../../features/location/data/models/vehicule_location_detail.dart';
+import '../../features/location/presentation/screens/demande_detail_screen.dart';
+import '../../features/location/presentation/screens/location_rating_screen.dart';
+import '../../features/location/presentation/screens/mes_locations_screen.dart';
+import '../../features/location/presentation/screens/nouvelle_demande_screen.dart';
+import '../../features/location/presentation/screens/recherche_vehicules_screen.dart';
+import '../../features/location/presentation/screens/vehicule_location_detail_screen.dart';
+import '../../features/chat/presentation/screens/chat_screen.dart';
 import '../../features/chauffeur/presentation/screens/chauffeur_hub_screen.dart';
 import '../../features/chauffeur/presentation/screens/chauffeur_vehicules_screen.dart';
+import '../../features/chauffeur/presentation/screens/chauffeur_course_screen.dart';
+import '../../features/proprietaire/data/models/location_acceptation_result.dart';
 import '../../features/proprietaire/presentation/screens/proprietaire_hub_screen.dart';
 import '../../features/vehicule/presentation/screens/vehicule_form_screen.dart';
 import '../../features/vehicule/presentation/screens/vehicule_detail_screen.dart';
 import '../../features/proprietaire/presentation/screens/location_detail_screen.dart';
+import '../../features/proprietaire/presentation/screens/location_paiement_confirmation_screen.dart';
+import '../../features/proprietaire/presentation/screens/location_rating_screen.dart';
+import '../../features/proprietaire/presentation/screens/proprietaire_locations_hub_screen.dart';
 import '../../features/profil/presentation/screens/profil_hub_screen.dart';
 import '../../features/profil/presentation/screens/mes_informations_screen.dart';
 import '../../features/profil/presentation/screens/mes_adresses_screen.dart';
@@ -62,10 +75,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final authState = authListenable.value;
 
       final isSplash = state.matchedLocation == Routes.splash;
-      final isAuth = [Routes.welcome, Routes.login, Routes.register].contains(state.matchedLocation);
+      final isAuth = [
+        Routes.welcome,
+        Routes.login,
+        Routes.register,
+      ].contains(state.matchedLocation);
       final isRoleSelection = state.matchedLocation == Routes.roleSelection;
       final isCompteSuspendu = state.matchedLocation == Routes.compteSuspendu;
-      final isKeycloakCallback = state.matchedLocation == Routes.keycloakCallback;
+      final isKeycloakCallback =
+          state.matchedLocation == Routes.keycloakCallback;
       final isPhoneCollection = state.matchedLocation == Routes.phoneCollection;
       final isHome = state.matchedLocation.startsWith('/home/');
 
@@ -73,7 +91,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return isSplash ? null : Routes.splash;
       }
 
-      if (authState.isAuthenticated && authState.user?.statutCompte == 'suspendu') {
+      if (authState.isAuthenticated &&
+          authState.user?.statutCompte == 'suspendu') {
         return isCompteSuspendu ? null : Routes.compteSuspendu;
       }
 
@@ -85,7 +104,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return null;
       }
 
-      if (isAuth || isSplash || isRoleSelection || isKeycloakCallback || isPhoneCollection) {
+      if (isAuth ||
+          isSplash ||
+          isRoleSelection ||
+          isKeycloakCallback ||
+          isPhoneCollection) {
         return null;
       }
       return Routes.splash;
@@ -139,6 +162,49 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/home/passager',
         name: 'home-passager',
         builder: (context, state) => const HomePassagerScreen(),
+        routes: [
+          GoRoute(
+            path: 'location',
+            name: 'passager-location-recherche',
+            builder: (context, state) => const RechercheVehiculesScreen(),
+          ),
+          GoRoute(
+            path: 'location/mes-locations',
+            name: 'passager-location-mes-locations',
+            builder: (context, state) => const MesLocationsScreen(),
+          ),
+          GoRoute(
+            path: 'location/mes-locations/:id',
+            name: 'passager-location-demande-detail',
+            builder: (context, state) =>
+                DemandeDetailScreen(idLocation: state.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: 'location/mes-locations/:id/noter',
+            name: 'passager-location-noter',
+            builder: (context, state) => LocationRatingScreen(
+              idLocation: state.pathParameters['id']!,
+              idProprietaire: state.extra as String,
+            ),
+          ),
+          GoRoute(
+            path: 'location/:id/demande',
+            name: 'passager-location-nouvelle-demande',
+            builder: (context, state) => NouvelleDemandeScreen(
+              idVehicule: state.pathParameters['id']!,
+              vehicule: state.extra is VehiculeLocationDetail
+                  ? state.extra as VehiculeLocationDetail
+                  : null,
+            ),
+          ),
+          GoRoute(
+            path: 'location/:id',
+            name: 'passager-location-detail',
+            builder: (context, state) => VehiculeLocationDetailScreen(
+              idVehicule: state.pathParameters['id']!,
+            ),
+          ),
+        ],
       ),
       GoRoute(
         path: '/home/chauffeur',
@@ -153,13 +219,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'vehicules/nouveau',
             name: 'chauffeur-vehicule-nouveau',
-            builder: (context, state) => const VehiculeFormScreen(type: 'course'),
+            builder: (context, state) =>
+                const VehiculeFormScreen(type: 'course'),
           ),
           GoRoute(
             path: 'vehicules/:id/modifier',
             name: 'chauffeur-vehicule-modifier',
-            builder: (context, state) =>
-                VehiculeFormScreen(type: 'course', idVehicule: state.pathParameters['id']!),
+            builder: (context, state) => VehiculeFormScreen(
+              type: 'course',
+              idVehicule: state.pathParameters['id']!,
+            ),
           ),
           GoRoute(
             path: 'vehicules/:id',
@@ -179,13 +248,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'vehicule/nouveau',
             name: 'proprietaire-vehicule-nouveau',
-            builder: (context, state) => const VehiculeFormScreen(type: 'location'),
+            builder: (context, state) =>
+                const VehiculeFormScreen(type: 'location'),
           ),
           GoRoute(
             path: 'vehicule/:id/modifier',
             name: 'proprietaire-vehicule-modifier',
-            builder: (context, state) =>
-                VehiculeFormScreen(type: 'location', idVehicule: state.pathParameters['id']!),
+            builder: (context, state) => VehiculeFormScreen(
+              type: 'location',
+              idVehicule: state.pathParameters['id']!,
+            ),
           ),
           GoRoute(
             path: 'vehicule/:id',
@@ -196,10 +268,31 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
+            path: 'locations',
+            name: 'proprietaire-locations-hub',
+            builder: (context, state) => const ProprietaireLocationsHubScreen(),
+          ),
+          GoRoute(
             path: 'locations/:id',
             name: 'proprietaire-location-detail',
             builder: (context, state) =>
                 LocationDetailScreen(idLocation: state.pathParameters['id']!),
+          ),
+          GoRoute(
+            path: 'locations/:id/paiement',
+            name: 'proprietaire-location-paiement',
+            builder: (context, state) => LocationPaiementConfirmationScreen(
+              idLocation: state.pathParameters['id']!,
+              resultat: state.extra as LocationAcceptationResult?,
+            ),
+          ),
+          GoRoute(
+            path: 'locations/:id/noter',
+            name: 'proprietaire-location-noter',
+            builder: (context, state) => ProprietaireLocationRatingScreen(
+              idLocation: state.pathParameters['id']!,
+              idPassager: state.extra as String,
+            ),
           ),
         ],
       ),
@@ -207,6 +300,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/notifications',
         name: 'notifications',
         builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/chat/:id',
+        name: 'chat',
+        builder: (context, state) =>
+            ChatScreen(idConversation: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/chauffeur/course/:id',
+        name: 'chauffeur-course',
+        builder: (context, state) =>
+            ChauffeurCourseScreen(idTrajet: state.pathParameters['id']!),
       ),
       GoRoute(
         path: Routes.destinationSearch,

@@ -28,6 +28,7 @@ class DevenirPartennaireScreen extends ConsumerStatefulWidget {
 
 class _DevenirPartennaireScreenState
     extends ConsumerState<DevenirPartennaireScreen> {
+  static const _formMaxWidth = 640.0;
   static const _submitSuccessMessage =
       'Demande envoyée avec succès ! Elle est en cours de traitement.';
   static const _snackBarDuration = Duration(seconds: 3);
@@ -73,14 +74,17 @@ class _DevenirPartennaireScreenState
                     const SizedBox(height: 32),
                   ],
                   if (selectedRole != null && !state.hasActiveDemande)
-                    DocumentsUploadSection(
-                      docs: state.docs,
-                      onPickFile: (docType) => ref
-                          .read(demandeExtensionProvider.notifier)
-                          .pickFile(docType),
-                      onUpload: (docType) => ref
-                          .read(demandeExtensionProvider.notifier)
-                          .uploadDocument(docType),
+                    _CenteredFormContent(
+                      maxWidth: _formMaxWidth,
+                      child: DocumentsUploadSection(
+                        docs: state.docs,
+                        onPickFile: (docType) => ref
+                            .read(demandeExtensionProvider.notifier)
+                            .pickFile(docType),
+                        onUpload: (docType) => ref
+                            .read(demandeExtensionProvider.notifier)
+                            .uploadDocument(docType),
+                      ),
                     ),
                   if (state.errorMessage != null) ...[
                     InlineBanner(
@@ -91,7 +95,13 @@ class _DevenirPartennaireScreenState
                     const SizedBox(height: 32),
                   ],
                   if (selectedRole != null && !state.hasActiveDemande)
-                    _SubmitSection(state: state, onSubmit: _handleSubmit),
+                    _CenteredFormContent(
+                      maxWidth: _formMaxWidth,
+                      child: _SubmitSection(
+                        state: state,
+                        onSubmit: _handleSubmit,
+                      ),
+                    ),
                   const SizedBox(height: 32),
                 ],
               ),
@@ -115,6 +125,23 @@ class _DevenirPartennaireScreenState
   }
 }
 
+class _CenteredFormContent extends StatelessWidget {
+  const _CenteredFormContent({required this.child, required this.maxWidth});
+
+  final Widget child;
+  final double maxWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: SizedBox(width: double.infinity, child: child),
+      ),
+    );
+  }
+}
+
 // ── Sélection du rôle ────────────────────────────────────────────────
 
 class _RoleSelectionSection extends StatelessWidget {
@@ -132,10 +159,10 @@ class _RoleSelectionSection extends StatelessWidget {
   /// active (en_attente/accepte) pour ce rôle. Une demande refusée
   /// n'empêche pas une nouvelle tentative.
   List<ExtensionRole> get _availableRoles => ExtensionRole.values.where((role) {
-        return !state.existingDemandes.any(
-          (d) => d.extensionType == role.value && d.statut != 'refuse',
-        );
-      }).toList();
+    return !state.existingDemandes.any(
+      (d) => d.extensionType == role.value && d.statut != 'refuse',
+    );
+  }).toList();
 
   @override
   Widget build(BuildContext context) {
@@ -157,22 +184,24 @@ class _RoleSelectionSection extends StatelessWidget {
             ),
           )
         else
-          // Row + Expanded (et non Wrap + Expanded, cf. RoleOptionCard)
-          // pour que les cartes se partagent l'espace horizontal disponible.
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (var i = 0; i < roles.length; i++) ...[
-                if (i > 0) const SizedBox(width: 12),
-                Expanded(
-                  child: RoleOptionCard(
-                    role: roles[i],
-                    isSelected: selectedRole == roles[i],
-                    onTap: () => onSelect(roles[i]),
+          // La hauteur est déterminée par la carte au contenu le plus long,
+          // puis appliquée aux deux cartes sans valeur fixe.
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < roles.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 12),
+                  Expanded(
+                    child: RoleOptionCard(
+                      role: roles[i],
+                      isSelected: selectedRole == roles[i],
+                      onTap: () => onSelect(roles[i]),
+                    ),
                   ),
-                ),
+                ],
               ],
-            ],
+            ),
           ),
         const SizedBox(height: 32),
       ],

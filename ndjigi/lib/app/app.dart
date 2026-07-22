@@ -2,7 +2,6 @@ import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../core/config/app_config.dart';
 import '../core/theme/app_theme.dart';
 import '../core/managers/auth_failure_manager.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
@@ -48,8 +47,12 @@ class _AppState extends ConsumerState<App> {
 
   void _handleDeepLink(Uri uri) {
     print('🔵 NDJIGI-AUTH: [APP-DEEPLINK] deep link reçu = ${uri.toString()}');
-    print('🔵 NDJIGI-AUTH: [APP-DEEPLINK] code = ${uri.queryParameters['code']}');
-    print('🔵 NDJIGI-AUTH: [APP-DEEPLINK] state = ${uri.queryParameters['state']}');
+    print(
+      '🔵 NDJIGI-AUTH: [APP-DEEPLINK] code = ${uri.queryParameters['code']}',
+    );
+    print(
+      '🔵 NDJIGI-AUTH: [APP-DEEPLINK] state = ${uri.queryParameters['state']}',
+    );
 
     final router = ref.read(appRouterProvider);
 
@@ -59,7 +62,9 @@ class _AppState extends ConsumerState<App> {
       final error = uri.queryParameters['error'];
 
       if (code != null) {
-        print('🔵 NDJIGI-AUTH: [APP-DEEPLINK] -> navigation vers keycloak-callback');
+        print(
+          '🔵 NDJIGI-AUTH: [APP-DEEPLINK] -> navigation vers keycloak-callback',
+        );
         router.go('/auth/keycloak-callback?code=$code&state=$state');
       } else if (error != null) {
         router.go('/login');
@@ -77,7 +82,7 @@ class _AppState extends ConsumerState<App> {
 
     return MaterialApp.router(
       title: 'N\'DJIGI',
-      debugShowCheckedModeBanner: AppConfig.isDebug,
+      debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.light,

@@ -154,15 +154,25 @@ class _DestinationSearchScreenState
           dureeEstimeeMin: (route.duration / 60).round(),
         );
       } catch (_) {
-        // Non bloquant : la demande de course peut se faire sans distance/durée précalculées
+        if (mounted) {
+          setState(() => _calculTrajetEnCours = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Impossible de calculer cet itinéraire. Vérifiez votre connexion puis réessayez.',
+              ),
+            ),
+          );
+        }
+        return;
       } finally {
         if (mounted) {
           setState(() {
             _calculTrajetEnCours = false;
-            _etape = _Etape.categorie;
           });
         }
       }
+      if (mounted) setState(() => _etape = _Etape.categorie);
     }
   }
 
@@ -438,6 +448,18 @@ class _EtapeCategorie extends ConsumerWidget {
                     ),
             ),
             const SizedBox(height: 16),
+            if (state.isLoadingTarif) ...[
+              const LinearProgressIndicator(),
+              const SizedBox(height: 12),
+            ] else if (state.tarifEstime != null) ...[
+              Text(
+                'Tarif estimé : ${state.tarifEstime!.round()} FCFA',
+                style: AppTextStyles.titleSmall.copyWith(
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             if (state.errorMessage != null) ...[
               Text(
                 state.errorMessage!,

@@ -32,7 +32,10 @@ class _DriverFoundScreenState extends ConsumerState<DriverFoundScreen> {
           maxLines: 2,
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Retour')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Retour'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, motifController.text),
             child: const Text('Confirmer l\'annulation'),
@@ -63,7 +66,9 @@ class _DriverFoundScreenState extends ConsumerState<DriverFoundScreen> {
     });
 
     final course = ref.watch(courseProvider).course;
-    if (course == null) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (course == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
     return Scaffold(
       backgroundColor: AppColors.surface,
@@ -86,9 +91,15 @@ class _DriverFoundScreenState extends ConsumerState<DriverFoundScreen> {
                   CircleAvatar(
                     radius: 32,
                     backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                    backgroundImage: course.chauffeurPhoto != null ? NetworkImage(course.chauffeurPhoto!) : null,
+                    backgroundImage: course.chauffeurPhoto != null
+                        ? NetworkImage(course.chauffeurPhoto!)
+                        : null,
                     child: course.chauffeurPhoto == null
-                        ? const Icon(Icons.person, size: 32, color: AppColors.primary)
+                        ? const Icon(
+                            Icons.person,
+                            size: 32,
+                            color: AppColors.primary,
+                          )
                         : null,
                   ),
                   const SizedBox(width: 16),
@@ -96,22 +107,35 @@ class _DriverFoundScreenState extends ConsumerState<DriverFoundScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(course.chauffeurNom ?? '—', style: AppTextStyles.titleSmall),
+                        Text(
+                          course.chauffeurNom ?? '—',
+                          style: AppTextStyles.titleSmall,
+                        ),
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            const Icon(Icons.star, size: 16, color: AppColors.accent),
+                            const Icon(
+                              Icons.star,
+                              size: 16,
+                              color: AppColors.accent,
+                            ),
                             const SizedBox(width: 4),
                             Text(
-                              course.chauffeurNote != null ? course.chauffeurNote!.toStringAsFixed(1) : 'Nouveau',
-                              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                              course.chauffeurNote != null
+                                  ? course.chauffeurNote!.toStringAsFixed(1)
+                                  : 'Nouveau',
+                              style: AppTextStyles.bodySmall.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 4),
                         Text(
                           '${course.vehiculeMarque ?? ''} ${course.vehiculeModele ?? ''} · ${course.vehiculeCouleur ?? ''}',
-                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                          style: AppTextStyles.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                         Text(
                           course.vehiculeImmatriculation ?? '',
@@ -127,13 +151,23 @@ class _DriverFoundScreenState extends ConsumerState<DriverFoundScreen> {
               ),
             ),
             const SizedBox(height: 24),
+            if (course.idConversation != null) ...[
+              OutlinedButton.icon(
+                onPressed: () => context.push('/chat/${course.idConversation}'),
+                icon: const Icon(Icons.chat_bubble_outline),
+                label: const Text('Écrire au chauffeur'),
+              ),
+              const SizedBox(height: 16),
+            ],
             Text(
               course.confirmationPassager
                   ? (course.confirmationChauffeur
-                      ? 'Les deux parties ont confirmé.'
-                      : 'En attente de la confirmation du chauffeur...')
+                        ? 'Les deux parties ont confirmé.'
+                        : 'En attente de la confirmation du chauffeur...')
                   : 'Vérifiez les informations puis confirmez la course.',
-              style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
             const Spacer(),
             if (!course.confirmationPassager) ...[
@@ -144,10 +178,15 @@ class _DriverFoundScreenState extends ConsumerState<DriverFoundScreen> {
               const SizedBox(height: 12),
               TextButton(onPressed: _annuler, child: const Text('Annuler')),
             ] else ...[
-              const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+              const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
               const SizedBox(height: 12),
               Center(
-                child: TextButton(onPressed: _annuler, child: const Text('Annuler')),
+                child: TextButton(
+                  onPressed: _annuler,
+                  child: const Text('Annuler'),
+                ),
               ),
             ],
           ],

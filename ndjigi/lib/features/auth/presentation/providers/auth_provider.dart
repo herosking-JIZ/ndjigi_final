@@ -10,11 +10,7 @@ class LoginFlowState {
   final String? codeVerifier;
   final String? state;
 
-  LoginFlowState({
-    this.authUrl,
-    this.codeVerifier,
-    this.state,
-  });
+  LoginFlowState({this.authUrl, this.codeVerifier, this.state});
 }
 
 class AuthState {
@@ -72,9 +68,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier({
     required AuthRepository authRepository,
     required SecureStorage storage,
-  })  : _authRepository = authRepository,
-        _storage = storage,
-        super(AuthState());
+  }) : _authRepository = authRepository,
+       _storage = storage,
+       super(AuthState());
 
   Future<void> login(String email, String password) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
@@ -82,7 +78,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final result = await _authRepository.login(email, password);
 
     if (result.success && result.user != null) {
-      final activeRole = result.user!.roles.isNotEmpty ? result.user!.roles.first : 'passager';
+      final activeRole = result.user!.roles.isNotEmpty
+          ? result.user!.roles.first
+          : 'passager';
       await _storage.saveActiveRole(activeRole);
 
       state = state.copyWith(
@@ -119,12 +117,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
         if (accessToken != null) {
           // Ajouter un timeout pour éviter les blocages réseau
-          final syncResult = await _authRepository.syncUser(accessToken)
+          final syncResult = await _authRepository
+              .syncUser(accessToken)
               .timeout(const Duration(seconds: 8));
 
           if (syncResult.success && syncResult.user != null) {
-            final activeRole = await _storage.getActiveRole() ??
-                (syncResult.user!.roles.isNotEmpty ? syncResult.user!.roles.first : 'passager');
+            final activeRole =
+                await _storage.getActiveRole() ??
+                (syncResult.user!.roles.isNotEmpty
+                    ? syncResult.user!.roles.first
+                    : 'passager');
             await _storage.saveActiveRole(activeRole);
 
             state = state.copyWith(
@@ -139,25 +141,46 @@ class AuthNotifier extends StateNotifier<AuthState> {
         }
       }
 
-      state = state.copyWith(
-        isLoading: false,
-        isAuthenticated: false,
-      );
+      state = state.copyWith(isLoading: false, isAuthenticated: false);
     } catch (e) {
       if (e is TimeoutException) {
         // Ne pas supprimer le token sur timeout réseau
         // L'utilisateur reste logué mais on ne peut pas charger le profil
-        state = state.copyWith(
-          isLoading: false,
-          isAuthenticated: true,
-        );
+        state = state.copyWith(isLoading: false, isAuthenticated: true);
         return;
       }
-      state = state.copyWith(
-        isLoading: false,
-        isAuthenticated: false,
+      state = state.copyWith(isLoading: false, isAuthenticated: false);
+    }
+  }
+
+  /// Resynchronise le profil sans modifier la session en cas d'erreur réseau.
+  Future<void> refreshProfile() async {
+    final accessToken = await _storage.getAccessToken();
+    if (accessToken == null) {
+      throw StateError('Session introuvable.');
+    }
+
+    final result = await _authRepository
+        .syncUser(accessToken)
+        .timeout(const Duration(seconds: 8));
+    if (!result.success || result.user == null) {
+      throw StateError(
+        result.errorMessage ?? 'Impossible d’actualiser le profil.',
       );
     }
+
+    state = state.copyWith(
+      user: result.user,
+      availableRoles: result.user!.roles,
+    );
+  }
+
+  /// Met à jour immédiatement le profil renvoyé par une mutation authentifiée.
+  void replaceUser(Utilisateur user) {
+    state = state.copyWith(
+      user: user,
+      availableRoles: user.roles.isEmpty ? state.availableRoles : user.roles,
+    );
   }
 
   Future<void> switchRole(String role) async {
@@ -182,7 +205,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
       // ✅ Sauvegarder le verifier en SecureStorage (survit à la recréation d'activité Android)
       await _storage.saveCodeVerifier(codeVerifier);
-      print('🔵 NDJIGI-AUTH: [AUTH-PROVIDER] startKeycloakLogin: verifier SAUVEGARDÉ = ${codeVerifier.substring(0, 8)}...');
+      print(
+        '🔵 NDJIGI-AUTH: [AUTH-PROVIDER] startKeycloakLogin: verifier SAUVEGARDÉ = ${codeVerifier.substring(0, 8)}...',
+      );
 
       return LoginFlowState(
         authUrl: loginData['authUrl'],
@@ -212,7 +237,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
 
       await _storage.saveCodeVerifier(codeVerifier);
-      print('🔵 NDJIGI-AUTH: [AUTH-PROVIDER] startKeycloakRegister: verifier SAUVEGARDÉ = ${codeVerifier.substring(0, 8)}...');
+      print(
+        '🔵 NDJIGI-AUTH: [AUTH-PROVIDER] startKeycloakRegister: verifier SAUVEGARDÉ = ${codeVerifier.substring(0, 8)}...',
+      );
 
       return LoginFlowState(
         authUrl: registerData['authUrl'],
@@ -232,7 +259,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String code,
     String? codeVerifier,
   }) async {
-    print('🔵 NDJIGI-AUTH: [AUTH-PROVIDER] completeKeycloakLogin DÉBUT, code reçu = $code');
+    print(
+      '🔵 NDJIGI-AUTH: [AUTH-PROVIDER] completeKeycloakLogin DÉBUT, code reçu = $code',
+    );
     state = state.copyWith(isLoading: true, errorMessage: null);
 
     // ✅ Lire le code_verifier depuis SecureStorage (survit à la recréation d'activité)
@@ -241,7 +270,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (verifier == null || verifier.isEmpty) {
       verifier = await _storage.getCodeVerifier();
     }
-    print('🔵 NDJIGI-AUTH: [AUTH-PROVIDER] verifier LU = ${verifier == null ? "NULL" : "${verifier.substring(0, 8)}..."}');
+    print(
+      '🔵 NDJIGI-AUTH: [AUTH-PROVIDER] verifier LU = ${verifier == null ? "NULL" : "${verifier.substring(0, 8)}..."}',
+    );
 
     if (verifier == null || verifier.isEmpty) {
       state = state.copyWith(
@@ -257,20 +288,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
       code: code,
       codeVerifier: verifier,
     );
-    print('🔵 NDJIGI-AUTH: [AUTH-PROVIDER] échange token success = ${keycloakResult.success}, erreur = ${keycloakResult.errorMessage}');
+    print(
+      '🔵 NDJIGI-AUTH: [AUTH-PROVIDER] échange token success = ${keycloakResult.success}, erreur = ${keycloakResult.errorMessage}',
+    );
 
     if (!keycloakResult.success || keycloakResult.accessToken == null) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: keycloakResult.errorMessage ?? 'Erreur de connexion Keycloak',
+        errorMessage:
+            keycloakResult.errorMessage ?? 'Erreur de connexion Keycloak',
       );
       return;
     }
 
     // 2️⃣ Synchroniser les données avec le backend pour obtenir statut_compte et données métier
     try {
-      final syncResult = await _authRepository.syncUser(keycloakResult.accessToken!);
-      print('🔵 NDJIGI-AUTH: [AUTH-PROVIDER] sync success = ${syncResult.success}, erreur = ${syncResult.errorMessage}');
+      final syncResult = await _authRepository.syncUser(
+        keycloakResult.accessToken!,
+      );
+      print(
+        '🔵 NDJIGI-AUTH: [AUTH-PROVIDER] sync success = ${syncResult.success}, erreur = ${syncResult.errorMessage}',
+      );
 
       if (syncResult.errorCode == 'PHONE_NUMBER_REQUIRED') {
         state = state.copyWith(
@@ -299,7 +337,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       } else {
         state = state.copyWith(
           isLoading: false,
-          errorMessage: syncResult.errorMessage ?? 'Erreur lors de la synchronisation',
+          errorMessage:
+              syncResult.errorMessage ?? 'Erreur lors de la synchronisation',
         );
       }
     } catch (e) {
@@ -340,7 +379,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } else {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: result.errorMessage ?? 'Erreur lors de la création du compte',
+        errorMessage:
+            result.errorMessage ?? 'Erreur lors de la création du compte',
       );
     }
   }

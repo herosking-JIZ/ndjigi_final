@@ -124,7 +124,7 @@ const ChauffeurController = {
       const { id } = req.params;
       const { statut_validation } = req.body;
 
-      if (!['valide', 'rejete', 'en_attente'].includes(statut_validation)) {
+      if (!['valide', 'refuse', 'en_attente', 'suspendu'].includes(statut_validation)) {
         return res.status(400).json({ success: false, message: 'Statut invalide.' });
       }
 
@@ -146,8 +146,63 @@ const ChauffeurController = {
       const { statut_disponibilite } = req.body;
       const id = req.user.id_utilisateur;
 
-      if (!['en_ligne', 'hors_ligne', 'en_course'].includes(statut_disponibilite)) {
-        return res.status(400).json({ success: false, message: 'Statut invalide.' });
+      // `en_course` est une transition métier réservée au cycle du trajet.
+      if (!['en_ligne', 'hors_ligne'].includes(statut_disponibilite)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Le chauffeur peut uniquement passer en ligne ou hors ligne.',
+          errors: { code: 'STATUT_NON_MODIFIABLE' },
+        });
+      }
+
+      const chauffeurActuel = await prisma.chauffeur.findUnique({
+        where: { id_chauffeur: id },
+        include: {
+          utilisateur: { select: { statut_compte: true, supprime_le: true } },
+          affectation_vehicule: {
+            where: { est_active: true },
+            take: 1,
+            include: { vehicule_course: { include: { vehicule: true } } },
+          },
+        },
+      });
+      if (!chauffeurActuel) {
+        return res.status(404).json({ success: false, message: 'Profil chauffeur introuvable.', errors: { code: 'CHAUFFEUR_INTROUVABLE' } });
+      }
+
+      const courseActive = await prisma.trajet.findFirst({
+        where: {
+          affectation_vehicule: { id_chauffeur: id },
+          statut: { in: ['chauffeur_trouve', 'confirme', 'en_cours'] },
+        },
+        select: { id_trajet: true },
+      });
+      if (courseActive) {
+        return res.status(409).json({
+          success: false,
+          message: 'La disponibilité ne peut pas être modifiée pendant une course.',
+          data: courseActive,
+          errors: { code: 'COURSE_ACTIVE' },
+        });
+      }
+
+      if (statut_disponibilite === 'en_ligne') {
+        if (chauffeurActuel.statut_validation !== 'valide') {
+          return res.status(403).json({ success: false, message: 'Le profil chauffeur doit être validé.', errors: { code: 'CHAUFFEUR_NON_VALIDE' } });
+        }
+        if (chauffeurActuel.utilisateur?.statut_compte !== 'actif' || chauffeurActuel.utilisateur?.supprime_le) {
+          return res.status(403).json({ success: false, message: 'Ce compte ne peut pas être mis en ligne.', errors: { code: 'COMPTE_INACTIF' } });
+        }
+        if (chauffeurActuel.date_expiration_permis && chauffeurActuel.date_expiration_permis < new Date()) {
+          return res.status(403).json({ success: false, message: 'Le permis de conduire est expiré.', errors: { code: 'PERMIS_EXPIRE' } });
+        }
+        const affectation = chauffeurActuel.affectation_vehicule[0];
+        if (!affectation) {
+          return res.status(409).json({ success: false, message: 'Aucun véhicule actif n’est affecté.', errors: { code: 'NO_ACTIVE_VEHICLE' } });
+        }
+        if (affectation.vehicule_course?.vehicule?.statut !== 'disponible') {
+          return res.status(409).json({ success: false, message: 'Le véhicule affecté n’est pas disponible.', errors: { code: 'VEHICULE_INDISPONIBLE' } });
+        }
       }
 
       const chauffeur = await prisma.chauffeur.update({
@@ -217,11 +272,34 @@ const ChauffeurController = {
       const { latitude, longitude, vitesse, cap } = req.body;
       const id_chauffeur = req.user.id_utilisateur;
 
-      if (latitude === undefined || longitude === undefined) {
+      const latitudeNombre = Number(latitude);
+      const longitudeNombre = Number(longitude);
+      const vitesseNombre = vitesse == null ? null : Number(vitesse);
+      const capNombre = cap == null ? null : Number(cap);
+      const positionValide = Number.isFinite(latitudeNombre)
+        && latitudeNombre >= -90 && latitudeNombre <= 90
+        && Number.isFinite(longitudeNombre)
+        && longitudeNombre >= -180 && longitudeNombre <= 180
+        && (vitesseNombre == null || (Number.isFinite(vitesseNombre) && vitesseNombre >= 0 && vitesseNombre <= 300))
+        && (capNombre == null || (Number.isFinite(capNombre) && capNombre >= 0 && capNombre <= 360));
+
+      if (!positionValide) {
         return res.status(400).json({
           success: false,
-          message: 'Latitude et longitude requises.',
+          message: 'Coordonnées GPS invalides.',
           errors: { code: 'INVALID_POSITION' }
+        });
+      }
+
+      const chauffeur = await prisma.chauffeur.findUnique({
+        where: { id_chauffeur },
+        select: { statut_disponibilite: true },
+      });
+      if (!chauffeur || !['en_ligne', 'en_course'].includes(chauffeur.statut_disponibilite)) {
+        return res.status(409).json({
+          success: false,
+          message: 'Le chauffeur doit être en ligne pour envoyer sa position.',
+          errors: { code: 'CHAUFFEUR_HORS_LIGNE' },
         });
       }
 
@@ -238,7 +316,12 @@ const ChauffeurController = {
         });
       }
 
-      await enregistrerPosition(affectation.id_vehicule, { latitude, longitude, vitesse, cap });
+      await enregistrerPosition(affectation.id_vehicule, {
+        latitude: latitudeNombre,
+        longitude: longitudeNombre,
+        vitesse: vitesseNombre,
+        cap: capNombre,
+      });
 
       return res.status(200).json({
         success: true,

@@ -13,7 +13,8 @@ class SearchingDriverScreen extends ConsumerStatefulWidget {
   const SearchingDriverScreen({super.key});
 
   @override
-  ConsumerState<SearchingDriverScreen> createState() => _SearchingDriverScreenState();
+  ConsumerState<SearchingDriverScreen> createState() =>
+      _SearchingDriverScreenState();
 }
 
 class _SearchingDriverScreenState extends ConsumerState<SearchingDriverScreen> {
@@ -52,7 +53,11 @@ class _SearchingDriverScreenState extends ConsumerState<SearchingDriverScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: echec
                 ? [
-                    Icon(Icons.search_off, size: 72, color: AppColors.textSecondary),
+                    Icon(
+                      Icons.search_off,
+                      size: 72,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(height: 24),
                     Text(
                       state.messageMatchingEchec!,
@@ -71,16 +76,25 @@ class _SearchingDriverScreenState extends ConsumerState<SearchingDriverScreen> {
                 : [
                     const CircularProgressIndicator(color: AppColors.primary),
                     const SizedBox(height: 24),
-                    Text('Recherche d\'un chauffeur à proximité...', style: AppTextStyles.titleSmall),
+                    Text(
+                      'Recherche d\'un chauffeur à proximité...',
+                      style: AppTextStyles.titleSmall,
+                    ),
                     const SizedBox(height: 8),
                     Text(
-                      'Cela peut prendre jusqu\'à 15 minutes.',
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+                      'Cela peut prendre jusqu\'à 10 minutes.',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 32),
                     TextButton(
                       onPressed: () async {
-                        await ref.read(courseProvider.notifier).annuler('Annulée par le passager pendant la recherche.');
+                        await ref
+                            .read(courseProvider.notifier)
+                            .annuler(
+                              'Annulée par le passager pendant la recherche.',
+                            );
                         ref.read(courseProvider.notifier).reset();
                         if (context.mounted) context.go('/home/passager');
                       },

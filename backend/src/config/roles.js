@@ -49,6 +49,7 @@ const ROLES_PERMISSIONS = {
     // Profil
     'profil:lire',
     'profil:modifier',
+    'chauffeur:lire',
     // Trajets
     'trajet:lire',
     'trajet:accepter',
@@ -63,6 +64,7 @@ const ROLES_PERMISSIONS = {
     // Disponibilité
     'disponibilite:modifier',
     // Avis
+    'avis:creer',
     'avis:lire',
     // Portefeuille
     'portefeuille:lire',
@@ -107,6 +109,7 @@ const ROLES_PERMISSIONS = {
     // Documents
     'document:soumettre',
     // Avis
+    'avis:creer',
     'avis:lire',
     // Tracking (ses propres véhicules)
     'tracking:lire',

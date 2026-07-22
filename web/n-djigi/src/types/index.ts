@@ -487,6 +487,27 @@ export interface TopChauffeur {
   chiffre_affaires: number
 }
 
+export type TypeMoyenPaiement = 'CARTE_BANCAIRE' | 'MOBILE_MONEY' | 'PORTEFEUILLE'
+
+export interface MoyenPaiementConfig {
+  id_moyen_paiement: string
+  type: TypeMoyenPaiement
+  nom: string
+  fournisseur?: string | null
+  instructions?: string | null
+  actif: boolean
+  date_ajout: string
+  date_desactivation?: string | null
+  nombre_paiements: number
+}
+
+export interface CreateMoyenPaiementPayload {
+  type: TypeMoyenPaiement
+  nom: string
+  fournisseur?: string
+  instructions?: string
+}
+
 // ═══════════════════════════════════════════════════════════════
 // MAINTENANCE (Parkeur)
 // ═══════════════════════════════════════════════════════════════

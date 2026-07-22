@@ -139,18 +139,26 @@ async function updateStatutDemande(idDemande, statut, motifRejet, adminId) {
 
     // 4. Mettre à jour dans une transaction
     const updatedDemande = await prisma.$transaction(async (tx) => {
-      // a. Mettre à jour le statut
-      const updated = await tx.demande_extension.update({
-        where: { id_demande_extension: idDemande },
-        data: {
-          statut: statut
+      // a. Transition atomique : une seule décision peut gagner, même si deux
+      // administrateurs valident la même demande au même moment.
+      const transition = await tx.demande_extension.updateMany({
+        where: {
+          id_demande_extension: idDemande,
+          statut: 'en_attente'
         },
-        include: { utilisateur: true, documents: true }
+        data: {
+          statut,
+          motif_rejet: statut === 'refuse' ? motifRejet : null,
+          date_decision: new Date(),
+          id_admin_decision: adminId
+        }
       });
 
-      // TODO: Stockage du motif_rejet
-      // NOTE: Le champ motif_rejet n'existe pas dans le schéma Prisma.
-      // Vous devez ajouter ce champ à demande_extension pour que le stockage du motif de rejet soit complet.
+      if (transition.count !== 1) {
+        const error = new Error('Cette demande a déjà été traitée');
+        error.code = 'ALREADY_PROCESSED';
+        throw error;
+      }
 
       // b. Si acceptée: ajouter rôle, créer profil métier, envoyer notif
       if (statut === 'accepte') {
@@ -183,10 +191,10 @@ async function updateStatutDemande(idDemande, statut, motifRejet, adminId) {
         if (demande.extension_type === 'chauffeur') {
           await tx.chauffeur.upsert({
             where: { id_chauffeur: demande.id_utilisateur },
-            update: { statut_validation: 'en_attente' },
+            update: { statut_validation: 'valide' },
             create: {
               id_chauffeur: demande.id_utilisateur,
-              statut_validation: 'en_attente',
+              statut_validation: 'valide',
               type_service: 'covoiturage',
               statut_disponibilite: 'hors_ligne',
               nb_courses_effectuees: 0,
@@ -196,10 +204,10 @@ async function updateStatutDemande(idDemande, statut, motifRejet, adminId) {
         } else if (demande.extension_type === 'proprietaire') {
           await tx.proprietaire.upsert({
             where: { id_proprietaire: demande.id_utilisateur },
-            update: { statut_validation: 'en_attente' },
+            update: { statut_validation: 'valide' },
             create: {
               id_proprietaire: demande.id_utilisateur,
-              statut_validation: 'en_attente',
+              statut_validation: 'valide',
               nb_locations_effectuees: 0
             }
           });
@@ -233,8 +241,22 @@ async function updateStatutDemande(idDemande, statut, motifRejet, adminId) {
         });
       }
 
-      return updated;
+      return tx.demande_extension.findUnique({
+        where: { id_demande_extension: idDemande },
+        include: { utilisateur: true, documents: true }
+      });
     });
+
+    // Le middleware d'autorisation met les rôles locaux en cache pendant 60 s.
+    // L'invalidation rend le nouveau rôle utilisable dès la requête suivante.
+    if (statut === 'accepte' && demande.utilisateur.keycloak_id) {
+      try {
+        const { getRedisClient } = require('../config/redis');
+        await getRedisClient().del(`auth:user:${demande.utilisateur.keycloak_id}`);
+      } catch (cacheError) {
+        console.warn('[demandeExtension.updateStatut] Cache auth non invalidé:', cacheError.message);
+      }
+    }
 
     return updatedDemande;
   } catch (error) {

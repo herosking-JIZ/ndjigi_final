@@ -56,6 +56,10 @@ mixin _$Course {
   bool get confirmationPassager => throw _privateConstructorUsedError;
   @JsonKey(name: 'identite_confirmee')
   bool get identiteConfirmee => throw _privateConstructorUsedError;
+  @JsonKey(name: 'chauffeur_arrive_a')
+  DateTime? get chauffeurArriveA => throw _privateConstructorUsedError;
+  @JsonKey(name: 'id_conversation')
+  String? get idConversation => throw _privateConstructorUsedError;
   @JsonKey(name: 'motif_annulation')
   String? get motifAnnulation => throw _privateConstructorUsedError;
   @JsonKey(name: 'chauffeur_nom')
@@ -111,6 +115,8 @@ abstract class $CourseCopyWith<$Res> {
     @JsonKey(name: 'confirmation_chauffeur') bool confirmationChauffeur,
     @JsonKey(name: 'confirmation_passager') bool confirmationPassager,
     @JsonKey(name: 'identite_confirmee') bool identiteConfirmee,
+    @JsonKey(name: 'chauffeur_arrive_a') DateTime? chauffeurArriveA,
+    @JsonKey(name: 'id_conversation') String? idConversation,
     @JsonKey(name: 'motif_annulation') String? motifAnnulation,
     @JsonKey(name: 'chauffeur_nom') String? chauffeurNom,
     @JsonKey(name: 'chauffeur_photo') String? chauffeurPhoto,
@@ -156,6 +162,8 @@ class _$CourseCopyWithImpl<$Res, $Val extends Course>
     Object? confirmationChauffeur = null,
     Object? confirmationPassager = null,
     Object? identiteConfirmee = null,
+    Object? chauffeurArriveA = freezed,
+    Object? idConversation = freezed,
     Object? motifAnnulation = freezed,
     Object? chauffeurNom = freezed,
     Object? chauffeurPhoto = freezed,
@@ -236,6 +244,14 @@ class _$CourseCopyWithImpl<$Res, $Val extends Course>
                 ? _value.identiteConfirmee
                 : identiteConfirmee // ignore: cast_nullable_to_non_nullable
                       as bool,
+            chauffeurArriveA: freezed == chauffeurArriveA
+                ? _value.chauffeurArriveA
+                : chauffeurArriveA // ignore: cast_nullable_to_non_nullable
+                      as DateTime?,
+            idConversation: freezed == idConversation
+                ? _value.idConversation
+                : idConversation // ignore: cast_nullable_to_non_nullable
+                      as String?,
             motifAnnulation: freezed == motifAnnulation
                 ? _value.motifAnnulation
                 : motifAnnulation // ignore: cast_nullable_to_non_nullable
@@ -308,6 +324,8 @@ abstract class _$$CourseImplCopyWith<$Res> implements $CourseCopyWith<$Res> {
     @JsonKey(name: 'confirmation_chauffeur') bool confirmationChauffeur,
     @JsonKey(name: 'confirmation_passager') bool confirmationPassager,
     @JsonKey(name: 'identite_confirmee') bool identiteConfirmee,
+    @JsonKey(name: 'chauffeur_arrive_a') DateTime? chauffeurArriveA,
+    @JsonKey(name: 'id_conversation') String? idConversation,
     @JsonKey(name: 'motif_annulation') String? motifAnnulation,
     @JsonKey(name: 'chauffeur_nom') String? chauffeurNom,
     @JsonKey(name: 'chauffeur_photo') String? chauffeurPhoto,
@@ -352,6 +370,8 @@ class __$$CourseImplCopyWithImpl<$Res>
     Object? confirmationChauffeur = null,
     Object? confirmationPassager = null,
     Object? identiteConfirmee = null,
+    Object? chauffeurArriveA = freezed,
+    Object? idConversation = freezed,
     Object? motifAnnulation = freezed,
     Object? chauffeurNom = freezed,
     Object? chauffeurPhoto = freezed,
@@ -432,6 +452,14 @@ class __$$CourseImplCopyWithImpl<$Res>
             ? _value.identiteConfirmee
             : identiteConfirmee // ignore: cast_nullable_to_non_nullable
                   as bool,
+        chauffeurArriveA: freezed == chauffeurArriveA
+            ? _value.chauffeurArriveA
+            : chauffeurArriveA // ignore: cast_nullable_to_non_nullable
+                  as DateTime?,
+        idConversation: freezed == idConversation
+            ? _value.idConversation
+            : idConversation // ignore: cast_nullable_to_non_nullable
+                  as String?,
         motifAnnulation: freezed == motifAnnulation
             ? _value.motifAnnulation
             : motifAnnulation // ignore: cast_nullable_to_non_nullable
@@ -498,6 +526,8 @@ class _$CourseImpl implements _Course {
     @JsonKey(name: 'confirmation_chauffeur') this.confirmationChauffeur = false,
     @JsonKey(name: 'confirmation_passager') this.confirmationPassager = false,
     @JsonKey(name: 'identite_confirmee') this.identiteConfirmee = false,
+    @JsonKey(name: 'chauffeur_arrive_a') this.chauffeurArriveA,
+    @JsonKey(name: 'id_conversation') this.idConversation,
     @JsonKey(name: 'motif_annulation') this.motifAnnulation,
     @JsonKey(name: 'chauffeur_nom') this.chauffeurNom,
     @JsonKey(name: 'chauffeur_photo') this.chauffeurPhoto,
@@ -584,6 +614,12 @@ class _$CourseImpl implements _Course {
   @JsonKey(name: 'identite_confirmee')
   final bool identiteConfirmee;
   @override
+  @JsonKey(name: 'chauffeur_arrive_a')
+  final DateTime? chauffeurArriveA;
+  @override
+  @JsonKey(name: 'id_conversation')
+  final String? idConversation;
+  @override
   @JsonKey(name: 'motif_annulation')
   final String? motifAnnulation;
   @override
@@ -613,7 +649,7 @@ class _$CourseImpl implements _Course {
 
   @override
   String toString() {
-    return 'Course(idTrajet: $idTrajet, idChauffeur: $idChauffeur, adresseDepart: $adresseDepart, adresseArrivee: $adresseArrivee, distanceKm: $distanceKm, dureeEstimeeMin: $dureeEstimeeMin, dateHeureDebut: $dateHeureDebut, dateHeureFin: $dateHeureFin, statut: $statut, typeTrajet: $typeTrajet, tarifFinal: $tarifFinal, coordonneesDepart: $coordonneesDepart, coordonneesArrivee: $coordonneesArrivee, polylineTrajet: $polylineTrajet, confirmationChauffeur: $confirmationChauffeur, confirmationPassager: $confirmationPassager, identiteConfirmee: $identiteConfirmee, motifAnnulation: $motifAnnulation, chauffeurNom: $chauffeurNom, chauffeurPhoto: $chauffeurPhoto, chauffeurTelephone: $chauffeurTelephone, chauffeurNote: $chauffeurNote, vehiculeMarque: $vehiculeMarque, vehiculeModele: $vehiculeModele, vehiculeCouleur: $vehiculeCouleur, vehiculeImmatriculation: $vehiculeImmatriculation)';
+    return 'Course(idTrajet: $idTrajet, idChauffeur: $idChauffeur, adresseDepart: $adresseDepart, adresseArrivee: $adresseArrivee, distanceKm: $distanceKm, dureeEstimeeMin: $dureeEstimeeMin, dateHeureDebut: $dateHeureDebut, dateHeureFin: $dateHeureFin, statut: $statut, typeTrajet: $typeTrajet, tarifFinal: $tarifFinal, coordonneesDepart: $coordonneesDepart, coordonneesArrivee: $coordonneesArrivee, polylineTrajet: $polylineTrajet, confirmationChauffeur: $confirmationChauffeur, confirmationPassager: $confirmationPassager, identiteConfirmee: $identiteConfirmee, chauffeurArriveA: $chauffeurArriveA, idConversation: $idConversation, motifAnnulation: $motifAnnulation, chauffeurNom: $chauffeurNom, chauffeurPhoto: $chauffeurPhoto, chauffeurTelephone: $chauffeurTelephone, chauffeurNote: $chauffeurNote, vehiculeMarque: $vehiculeMarque, vehiculeModele: $vehiculeModele, vehiculeCouleur: $vehiculeCouleur, vehiculeImmatriculation: $vehiculeImmatriculation)';
   }
 
   @override
@@ -658,6 +694,10 @@ class _$CourseImpl implements _Course {
                 other.confirmationPassager == confirmationPassager) &&
             (identical(other.identiteConfirmee, identiteConfirmee) ||
                 other.identiteConfirmee == identiteConfirmee) &&
+            (identical(other.chauffeurArriveA, chauffeurArriveA) ||
+                other.chauffeurArriveA == chauffeurArriveA) &&
+            (identical(other.idConversation, idConversation) ||
+                other.idConversation == idConversation) &&
             (identical(other.motifAnnulation, motifAnnulation) ||
                 other.motifAnnulation == motifAnnulation) &&
             (identical(other.chauffeurNom, chauffeurNom) ||
@@ -702,6 +742,8 @@ class _$CourseImpl implements _Course {
     confirmationChauffeur,
     confirmationPassager,
     identiteConfirmee,
+    chauffeurArriveA,
+    idConversation,
     motifAnnulation,
     chauffeurNom,
     chauffeurPhoto,
@@ -750,6 +792,8 @@ abstract class _Course implements Course {
     @JsonKey(name: 'confirmation_chauffeur') final bool confirmationChauffeur,
     @JsonKey(name: 'confirmation_passager') final bool confirmationPassager,
     @JsonKey(name: 'identite_confirmee') final bool identiteConfirmee,
+    @JsonKey(name: 'chauffeur_arrive_a') final DateTime? chauffeurArriveA,
+    @JsonKey(name: 'id_conversation') final String? idConversation,
     @JsonKey(name: 'motif_annulation') final String? motifAnnulation,
     @JsonKey(name: 'chauffeur_nom') final String? chauffeurNom,
     @JsonKey(name: 'chauffeur_photo') final String? chauffeurPhoto,
@@ -815,6 +859,12 @@ abstract class _Course implements Course {
   @override
   @JsonKey(name: 'identite_confirmee')
   bool get identiteConfirmee;
+  @override
+  @JsonKey(name: 'chauffeur_arrive_a')
+  DateTime? get chauffeurArriveA;
+  @override
+  @JsonKey(name: 'id_conversation')
+  String? get idConversation;
   @override
   @JsonKey(name: 'motif_annulation')
   String? get motifAnnulation;

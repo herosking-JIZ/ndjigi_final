@@ -33,6 +33,7 @@ const zoneRoutes = require('./zoneTarifaireRoute');
 const categorieRoutes = require('./categorieVehiculeRoute');
 const tarifRoutes = require('./tarifCategorieZoneRoute');
 const demandeExtensionRoutes = require('./demandeExtension.routes');
+const moyenPaiementRoutes = require('./moyenPaiementRoute');
 
 const { authenticateKeycloak } = require('../middlewares/authenticateKeycloak');
 const { authenticate } = require('../middlewares/authenticate');
@@ -93,6 +94,7 @@ router.use('/contacts-confiance', contactRoute);
 router.use('/config/zones', zoneRoutes);
 router.use('/config/categories', categorieRoutes);
 router.use('/config/tarifs', tarifRoutes);
+router.use('/config/moyens-paiement', moyenPaiementRoutes);
 router.use('/support/tickets', supportRoutes);
 router.use('/finances', financesRoutes);
 router.use('/faqs', faqRoute);
